@@ -339,25 +339,6 @@ module FrequencyTransforms
         end
     end 
 
-    function PowerSpectrum_2modes(part, f, A0, A1, φ1, φ2, ωr0, ωi0, ωr1, ωi1)
-        ## Compute the power spectrum of one or a two QNMs
-        ## For num_modes = 2, QNM = QNM_1 + QNM_2
-        ## both consider Re(QNM) + i Im(QNM)
-    
-        if part == "both"
-            return A0^2 / (ωi0^2 + (ωr0 - 2*pi*f)^2) + A1^2 / (ωi1^2 + (ωr1 - 2*pi*f)^2) +
-                    2*A0*A1*((ωi0*ωi1 + (ωr0 - 2*pi*f)*(ωr1 - 2*pi*f))*cos(φ)
-                    - (ωi0*(ωr1 - 2*pi*f) - ωi1*(ωr0 - 2*pi*f))*sin(φ)) /
-                    ((ωi0^2 + (ωr0 - 2*pi*f)^2)*(ωi1^2 + (ωr1 - 2*pi*f)^2))
-        elseif part == "real" | part == "imaginary"
-            return abs(Fourier_1mode(part, f, A0, φ0, ωr0, ωi0) + Fourier_1mode(part, f, A1, φ1, ωr1, ωi1))^2
-        else 
-            error("fisrt argument of fourier_single_mode must be set to \"real\", \"imaginary\" or \"both\".")
-        end
-
-    end 
-
-
     function Fourier_2QNMs(freq, amplitudes, phases, omega, mode_1, mode_2, time_unit, strain_unit, convention = "FH")
         ## Fourier transfor of two QNMs
         ## These are given in SI units
@@ -381,350 +362,346 @@ module FrequencyTransforms
         return ft_Re, ft_Im
     end
 
-
     # fourier transform of the partial derivative of the QNM 
     # used to compute Fisher matrix 
     # eqs. (4.4) and (7.4) of https://arxiv.org/pdf/gr-qc/0512160.pdf
-    using ..FourierTransformsPartial
-    function Fourier_d1mode(variable, part, freq, A, φ, f, τ, decay = "tau")
+    using ..FourierTransformsPartial, ..FourierTransformsPartialFH
+    function Fourier_d1mode(variable, part, freq, A, φ, f, τ, decay = "tau", convention = "FH")
         ## Consider modes are written independently: 
         ### Re(QNM) = A0*exp(-ωi0*t)*cos(ωr0*t - φ0) + A1*exp(-ωi1*t)*cos(ωr1*t - φ1)
         ### Im(QNM) = A0*exp(-ωi0*t)*sin(ωr0*t - φ0) + A1*exp(-ωi1*t)*sin(ωr1*t - φ1)
-        if decay == "tau"
-            if part == "real"
-                if variable == "f"
-                    return FourierTransformsPartial.ft_dh_df_Re(freq, A, φ, f, τ)
-                elseif variable == "tau"
-                    return FourierTransformsPartial.ft_dh_dtau_Re(freq, A, φ, f, τ)
-                elseif variable == "A"
-                    return FourierTransformsPartial.ft_dh_dAtau_Re(freq, A, φ, f, τ)
-                elseif variable == "phi"
-                    return FourierTransformsPartial.ft_dh_dphitau_Re(freq, A, φ, f, τ)
+        if convention == "FH"
+            if decay == "tau"
+                if part == "real"
+                    if variable == "f"
+                        return FourierTransformsPartialFH.ft_dh_df_Re(freq, A, φ, f, τ)
+                    elseif variable == "tau"
+                        return FourierTransformsPartialFH.ft_dh_dtau_Re(freq, A, φ, f, τ)
+                    elseif variable == "A"
+                        return FourierTransformsPartialFH.ft_dh_dAtau_Re(freq, A, φ, f, τ)
+                    elseif variable == "phi"
+                        return FourierTransformsPartialFH.ft_dh_dphitau_Re(freq, A, φ, f, τ)
+                    else 
+                        error("Fourier_d1mode first argument should be \"f\", \"tau\", \"A\", \"phi\".")
+                    end
+                elseif part == "imaginary"
+                    if variable == "f"
+                        return FourierTransformsPartialFH.ft_dh_df_Im(freq, A, φ, f, τ)
+                    elseif variable == "tau"
+                        return FourierTransformsPartialFH.ft_dh_dtau_Im(freq, A, φ, f, τ)
+                    elseif variable == "A"
+                        return FourierTransformsPartialFH.ft_dh_dAtau_Im(freq, A, φ, f, τ)
+                    elseif variable == "phi"
+                        return FourierTransformsPartialFH.ft_dh_dphitau_Im(freq, A, φ, f, τ)
+                    else 
+                        error("Fourier_d1mode first argument should be \"f\", \"tau\", \"A\", \"phi\".")
+                    end
                 else 
-                    error("Fourier_d1mode first argument should be \"f\", \"tau\", \"A\", \"phi\".")
+                    error("Fourier_d1mode second argument should be \"real\" or \"imaginary\".")
                 end
-            elseif part == "imaginary"
-                if variable == "f"
-                    return FourierTransformsPartial.ft_dh_df_Im(freq, A, φ, f, τ)
-                elseif variable == "tau"
-                    return FourierTransformsPartial.ft_dh_dtau_Im(freq, A, φ, f, τ)
-                elseif variable == "A"
-                    return FourierTransformsPartial.ft_dh_dAtau_Im(freq, A, φ, f, τ)
-                elseif variable == "phi"
-                    return FourierTransformsPartial.ft_dh_dphitau_Im(freq, A, φ, f, τ)
+            elseif decay == "Q"
+                # quality factor Q = π*f*τ
+                if part == "real"
+                    if variable == "f"
+                        return FourierTransformsPartialFH.ft_dh_dfQ_Re(freq, A, φ, f, pi*f*τ)
+                    elseif variable == "Q"
+                        return FourierTransformsPartialFH.ft_dh_dQ_Re(freq, A, φ, f, pi*f*τ)
+                    elseif variable == "A"
+                        return FourierTransformsPartialFH.ft_dh_dAQ_Re(freq, A, φ, f, pi*f*τ)
+                    elseif variable == "phi"
+                        return FourierTransformsPartialFH.ft_dh_dphiQ_Re(freq, A, φ, f, pi*f*τ)
+                    else 
+                        error("Fourier_d1mode first argument should be \"f\", \"Q\", \"A\", \"phi\".")
+                    end
+                elseif part == "imaginary"
+                    if variable == "f"
+                        return FourierTransformsPartialFH.ft_dh_dfQ_Im(freq, A, φ, f, pi*f*τ)
+                    elseif variable == "Q"
+                        return FourierTransformsPartialFH.ft_dh_dQ_Im(freq, A, φ, f, pi*f*τ)
+                    elseif variable == "A"
+                        return FourierTransformsPartialFH.ft_dh_dAQ_Im(freq, A, φ, f, pi*f*τ)
+                    elseif variable == "phi"
+                        return FourierTransformsPartialFH.ft_dh_dphiQ_Im(freq, A, φ, f, pi*f*τ)
+                    else 
+                        error("Fourier_d1mode first argument should be \"f\", \"Q\", \"A\", \"phi\".")
+                    end
                 else 
-                    error("Fourier_d1mode first argument should be \"f\", \"tau\", \"A\", \"phi\".")
+                    error("Fourier_d1mode second argument should be \"real\" or \"imaginary\".")
                 end
             else 
-                error("Fourier_d1mode second argument should be \"real\" or \"imaginary\".")
+                error("Fourier_d1mode last argument should be \"tau\" or \"Q\".")
             end
-        elseif decay == "Q"
-            # quality factor Q = π*f*τ
-            if part == "real"
-                if variable == "f"
-                    return FourierTransformsPartial.ft_dh_dfQ_Re(freq, A, φ, f, pi*f*τ)
-                elseif variable == "Q"
-                    return FourierTransformsPartial.ft_dh_dQ_Re(freq, A, φ, f, pi*f*τ)
-                elseif variable == "A"
-                    return FourierTransformsPartial.ft_dh_dAQ_Re(freq, A, φ, f, pi*f*τ)
-                elseif variable == "phi"
-                    return FourierTransformsPartial.ft_dh_dphiQ_Re(freq, A, φ, f, pi*f*τ)
+        elseif convention == "EF"
+            if decay == "tau"
+                if part == "real"
+                    if variable == "f"
+                        return FourierTransformsPartial.ft_dh_df_Re(freq, A, φ, f, τ)
+                    elseif variable == "tau"
+                        return FourierTransformsPartial.ft_dh_dtau_Re(freq, A, φ, f, τ)
+                    elseif variable == "A"
+                        return FourierTransformsPartial.ft_dh_dAtau_Re(freq, A, φ, f, τ)
+                    elseif variable == "phi"
+                        return FourierTransformsPartial.ft_dh_dphitau_Re(freq, A, φ, f, τ)
+                    else 
+                        error("Fourier_d1mode first argument should be \"f\", \"tau\", \"A\", \"phi\".")
+                    end
+                elseif part == "imaginary"
+                    if variable == "f"
+                        return FourierTransformsPartial.ft_dh_df_Im(freq, A, φ, f, τ)
+                    elseif variable == "tau"
+                        return FourierTransformsPartial.ft_dh_dtau_Im(freq, A, φ, f, τ)
+                    elseif variable == "A"
+                        return FourierTransformsPartial.ft_dh_dAtau_Im(freq, A, φ, f, τ)
+                    elseif variable == "phi"
+                        return FourierTransformsPartial.ft_dh_dphitau_Im(freq, A, φ, f, τ)
+                    else 
+                        error("Fourier_d1mode first argument should be \"f\", \"tau\", \"A\", \"phi\".")
+                    end
                 else 
-                    error("Fourier_d1mode first argument should be \"f\", \"Q\", \"A\", \"phi\".")
+                    error("Fourier_d1mode second argument should be \"real\" or \"imaginary\".")
                 end
-            elseif part == "imaginary"
-                if variable == "f"
-                    return FourierTransformsPartial.ft_dh_dfQ_Im(freq, A, φ, f, pi*f*τ)
-                elseif variable == "Q"
-                    return FourierTransformsPartial.ft_dh_dQ_Im(freq, A, φ, f, pi*f*τ)
-                elseif variable == "A"
-                    return FourierTransformsPartial.ft_dh_dAQ_Im(freq, A, φ, f, pi*f*τ)
-                elseif variable == "phi"
-                    return FourierTransformsPartial.ft_dh_dphiQ_Im(freq, A, φ, f, pi*f*τ)
+            elseif decay == "Q"
+                # quality factor Q = π*f*τ
+                if part == "real"
+                    if variable == "f"
+                        return FourierTransformsPartial.ft_dh_dfQ_Re(freq, A, φ, f, pi*f*τ)
+                    elseif variable == "Q"
+                        return FourierTransformsPartial.ft_dh_dQ_Re(freq, A, φ, f, pi*f*τ)
+                    elseif variable == "A"
+                        return FourierTransformsPartial.ft_dh_dAQ_Re(freq, A, φ, f, pi*f*τ)
+                    elseif variable == "phi"
+                        return FourierTransformsPartial.ft_dh_dphiQ_Re(freq, A, φ, f, pi*f*τ)
+                    else 
+                        error("Fourier_d1mode first argument should be \"f\", \"Q\", \"A\", \"phi\".")
+                    end
+                elseif part == "imaginary"
+                    if variable == "f"
+                        return FourierTransformsPartial.ft_dh_dfQ_Im(freq, A, φ, f, pi*f*τ)
+                    elseif variable == "Q"
+                        return FourierTransformsPartial.ft_dh_dQ_Im(freq, A, φ, f, pi*f*τ)
+                    elseif variable == "A"
+                        return FourierTransformsPartial.ft_dh_dAQ_Im(freq, A, φ, f, pi*f*τ)
+                    elseif variable == "phi"
+                        return FourierTransformsPartial.ft_dh_dphiQ_Im(freq, A, φ, f, pi*f*τ)
+                    else 
+                        error("Fourier_d1mode first argument should be \"f\", \"Q\", \"A\", \"phi\".")
+                    end
                 else 
-                    error("Fourier_d1mode first argument should be \"f\", \"Q\", \"A\", \"phi\".")
+                    error("Fourier_d1mode second argument should be \"real\" or \"imaginary\".")
                 end
             else 
-                error("Fourier_d1mode second argument should be \"real\" or \"imaginary\".")
+                error("Fourier_d1mode last argument should be \"tau\" or \"Q\".")
             end
-        else 
-            error("Fourier_d1mode last argument should be \"tau\" or \"Q\".")
+        else
+            error("convention argument must be set to \"FH\" or \"EF\".")
         end
     end
 
-    function Fourier_d2modes(variable, part, freq, A0, φ0, f0, τ0, R, φ1, f1, τ1, decay = "tau")
+    function Fourier_d2modes(variable, part, freq, A0, φ0, f0, τ0, R, φ1, f1, τ1, decay = "tau", convention = "FH")
         ## Consider modes overall amplitude A0
         ## Re(QNM) = A0*(exp(-ωi0*t)*cos(ωr0*t - φ0) + R*exp(-ωi1*t)*cos(ωr1*t - φ1))
-        if decay == "tau"
-            if part == "real"
-                if variable == "f0"
-                    return FourierTransformsPartial.ft_dh_df_Re(freq, A0, φ0, f0, τ0)
-                elseif variable == "tau0"
-                    return FourierTransformsPartial.ft_dh_dtau_Re(freq, A0, φ0, f0, τ0)
-                elseif variable == "f1"
-                    return FourierTransformsPartial.ft_dh_df_Re(freq, R/A0, φ1, f1, τ1)
-                elseif variable == "tau1"
-                    return FourierTransformsPartial.ft_dh_dtau_Re(freq, R/A0, φ1, f1, τ1)
-                elseif variable == "R"
-                    return FourierTransformsPartial.ft_dh_dR_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
-                elseif variable == "dphi"
-                    return FourierTransformsPartial.ft_dh_ddphi1_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
-                elseif variable == "A0"
-                    return FourierTransformsPartial.ft_dh_dA0_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
-                elseif variable == "phi0"
-                    return FourierTransformsPartial.ft_dh_dphitau_Re(freq, A0, φ0, f0, τ0)
+        if convention == "FH"
+            if decay == "tau"
+                if part == "real"
+                    if variable == "f0"
+                        return FourierTransformsPartialFH.ft_dh_df_Re(freq, A0, φ0, f0, τ0)
+                    elseif variable == "tau0"
+                        return FourierTransformsPartialFH.ft_dh_dtau_Re(freq, A0, φ0, f0, τ0)
+                    elseif variable == "f1"
+                        return FourierTransformsPartialFH.ft_dh_df_Re(freq, R/A0, φ1, f1, τ1)
+                    elseif variable == "tau1"
+                        return FourierTransformsPartialFH.ft_dh_dtau_Re(freq, R/A0, φ1, f1, τ1)
+                    elseif variable == "R"
+                        return FourierTransformsPartialFH.ft_dh_dR_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                    elseif variable == "dphi"
+                        return FourierTransformsPartialFH.ft_dh_ddphi1_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                    elseif variable == "A0"
+                        return FourierTransformsPartialFH.ft_dh_dA0_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                    elseif variable == "phi0"
+                        return FourierTransformsPartialFH.ft_dh_dphitau_Re(freq, A0, φ0, f0, τ0)
+                    else 
+                        error("Fourir_d2modes first argument should be: \n 
+                            \"f0\", \"tau0\", \"f1\", \"tau1\", \"R\", \"dphi\", \"A0\", \"phi0\".")
+                    end
+                elseif part == "imaginary"
+                    if variable == "f0"
+                        return FourierTransformsPartialFH.ft_dh_df_Im(freq, A0, φ0, f0, τ0)
+                    elseif variable == "tau0"
+                        return FourierTransformsPartialFH.ft_dh_dtau_Im(freq, A0, φ0, f0, τ0)
+                    elseif variable == "f1"
+                        return FourierTransformsPartialFH.ft_dh_df_Im(freq, R/A0, φ1, f1, τ1)
+                    elseif variable == "tau1"
+                        return FourierTransformsPartialFH.ft_dh_dtau_Im(freq, R/A0, φ1, f1, τ1)
+                    elseif variable == "R"
+                        return FourierTransformsPartialFH.ft_dh_dR_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                    elseif variable == "dphi"
+                        return FourierTransformsPartialFH.ft_dh_ddphi1_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                    elseif variable == "A0"
+                        return FourierTransformsPartialFH.ft_dh_dA0_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                    elseif variable == "phi0"
+                        return FourierTransformsPartialFH.ft_dh_dphitau_Im(freq, A0, φ0, f0, τ0)
+                    else 
+                        error("Fourir_d2modes first argument should be: \n 
+                            \"f0\", \"tau0\", \"f1\", \"tau1\", \"R\", \"dphi\", \"A0\", \"phi0\".")
+                    end
                 else 
-                    error("Fourir_d2modes first argument should be: \n 
-                        \"f0\", \"tau0\", \"f1\", \"tau1\", \"R\", \"dphi\", \"A0\", \"phi0\".")
+                    error("Fourir_d2modes second argument should be \"real\" or \"imaginary\".")
                 end
-            elseif part == "imaginary"
-                if variable == "f0"
-                    return FourierTransformsPartial.ft_dh_df_Im(freq, A0, φ0, f0, τ0)
-                elseif variable == "tau0"
-                    return FourierTransformsPartial.ft_dh_dtau_Im(freq, A0, φ0, f0, τ0)
-                elseif variable == "f1"
-                    return FourierTransformsPartial.ft_dh_df_Im(freq, R/A0, φ1, f1, τ1)
-                elseif variable == "tau1"
-                    return FourierTransformsPartial.ft_dh_dtau_Im(freq, R/A0, φ1, f1, τ1)
-                elseif variable == "R"
-                    return FourierTransformsPartial.ft_dh_dR_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
-                elseif variable == "dphi"
-                    return FourierTransformsPartial.ft_dh_ddphi1_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
-                elseif variable == "A0"
-                    return FourierTransformsPartial.ft_dh_dA0_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
-                elseif variable == "phi0"
-                    return FourierTransformsPartial.ft_dh_dphitau_Im(freq, A0, φ0, f0, τ0)
+            elseif decay == "Q"
+                # quality factor Q = π*f*tau
+                if part == "real"
+                    if variable == "f0"
+                        return FourierTransformsPartialFH.ft_dh_dfQ_Re(freq, A0, φ0, f0, pi*f0*τ0)
+                    elseif variable == "Q0"
+                        return FourierTransformsPartialFH.ft_dh_dQ_Re(freq, A0, φ0, f0, pi*f0*τ0)
+                    elseif variable == "f1"
+                        return FourierTransformsPartialFH.ft_dh_dfQ_Re(freq, R/A0, φ1, f1, pi*f1*τ1)
+                    elseif variable == "Q1"
+                        return FourierTransformsPartialFH.ft_dh_dQ_Re(freq, R/A0, φ1, f1, pi*f1*τ1)
+                    elseif variable == "R"
+                        return FourierTransformsPartialFH.ft_dh_dR_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                    elseif variable == "dphi"
+                        return FourierTransformsPartialFH.ft_dh_ddphi1_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                    elseif variable == "A0"
+                        return FourierTransformsPartialFH.ft_dh_dA0_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                    elseif variable == "phi0"
+                        return FourierTransformsPartialFH.ft_dh_dphitau_Re(freq, A0, φ0, f0, τ0)
+                    else 
+                        error("Fourir_d2modes first argument should be: \n 
+                            \"f0\", \"tau0\", \"f1\", \"tau1\", \"R\", \"dphi\", \"A0\", \"phi0\".")
+                    end
+                elseif part == "imaginary"
+                    if variable == "f0"
+                        return FourierTransformsPartialFH.ft_dh_dfQ_Im(freq, A0, φ0, f0, pi*f0*τ0)
+                    elseif variable == "Q0"
+                        return FourierTransformsPartialFH.ft_dh_dQ_Im(freq, A0, φ0, f0, pi*f0*τ0)
+                    elseif variable == "f1"
+                        return FourierTransformsPartialFH.ft_dh_dfQ_Im(freq, R/A0, φ1, f1, pi*f1*τ1)
+                    elseif variable == "Q1"
+                        return FourierTransformsPartialFH.ft_dh_dQ_Im(freq, R/A0, φ1, f1, pi*f1*τ1)
+                    elseif variable == "R"
+                        return FourierTransformsPartialFH.ft_dh_dR_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                    elseif variable == "dphi"
+                        return FourierTransformsPartialFH.ft_dh_ddphi1_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                    elseif variable == "A0"
+                        return FourierTransformsPartialFH.ft_dh_dA0_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                    elseif variable == "phi0"
+                        return FourierTransformsPartialFH.ft_dh_dphitau_Im(freq, A0, φ0, f0, τ0)
+                    else 
+                        error("Fourir_d2modes first argument should be: \n 
+                            \"f0\", \"tau0\", \"f1\", \"tau1\", \"R\", \"dphi\", \"A0\", \"phi0\".")
+                    end
                 else 
-                    error("Fourir_d2modes first argument should be: \n 
-                        \"f0\", \"tau0\", \"f1\", \"tau1\", \"R\", \"dphi\", \"A0\", \"phi0\".")
+                    error("Fourir_d2modes second argument should be \"real\" or \"imaginary\".")
                 end
             else 
-                error("Fourir_d2modes second argument should be \"real\" or \"imaginary\".")
+                error("Fourir_d2modes last argument should be \"tau\" or \"Q\".")
             end
-        elseif decay == "Q"
-            # quality factor Q = π*f*tau
-            if part == "real"
-                if variable == "f0"
-                    return FourierTransformsPartial.ft_dh_dfQ_Re(freq, A0, φ0, f0, pi*f0*τ0)
-                elseif variable == "Q0"
-                    return FourierTransformsPartial.ft_dh_dQ_Re(freq, A0, φ0, f0, pi*f0*τ0)
-                elseif variable == "f1"
-                    return FourierTransformsPartial.ft_dh_dfQ_Re(freq, R/A0, φ1, f1, pi*f1*τ1)
-                elseif variable == "Q1"
-                    return FourierTransformsPartial.ft_dh_dQ_Re(freq, R/A0, φ1, f1, pi*f1*τ1)
-                elseif variable == "R"
-                    return FourierTransformsPartial.ft_dh_dR_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
-                elseif variable == "dphi"
-                    return FourierTransformsPartial.ft_dh_ddphi1_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
-                elseif variable == "A0"
-                    return FourierTransformsPartial.ft_dh_dA0_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
-                elseif variable == "phi0"
-                    return FourierTransformsPartial.ft_dh_dphitau_Re(freq, A0, φ0, f0, τ0)
+        elseif convention == "EF"
+            if decay == "tau"
+                if part == "real"
+                    if variable == "f0"
+                        return FourierTransformsPartial.ft_dh_df_Re(freq, A0, φ0, f0, τ0)
+                    elseif variable == "tau0"
+                        return FourierTransformsPartial.ft_dh_dtau_Re(freq, A0, φ0, f0, τ0)
+                    elseif variable == "f1"
+                        return FourierTransformsPartial.ft_dh_df_Re(freq, R/A0, φ1, f1, τ1)
+                    elseif variable == "tau1"
+                        return FourierTransformsPartial.ft_dh_dtau_Re(freq, R/A0, φ1, f1, τ1)
+                    elseif variable == "R"
+                        return FourierTransformsPartial.ft_dh_dR_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                    elseif variable == "dphi"
+                        return FourierTransformsPartial.ft_dh_ddphi1_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                    elseif variable == "A0"
+                        return FourierTransformsPartial.ft_dh_dA0_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                    elseif variable == "phi0"
+                        return FourierTransformsPartial.ft_dh_dphitau_Re(freq, A0, φ0, f0, τ0)
+                    else 
+                        error("Fourir_d2modes first argument should be: \n 
+                            \"f0\", \"tau0\", \"f1\", \"tau1\", \"R\", \"dphi\", \"A0\", \"phi0\".")
+                    end
+                elseif part == "imaginary"
+                    if variable == "f0"
+                        return FourierTransformsPartial.ft_dh_df_Im(freq, A0, φ0, f0, τ0)
+                    elseif variable == "tau0"
+                        return FourierTransformsPartial.ft_dh_dtau_Im(freq, A0, φ0, f0, τ0)
+                    elseif variable == "f1"
+                        return FourierTransformsPartial.ft_dh_df_Im(freq, R/A0, φ1, f1, τ1)
+                    elseif variable == "tau1"
+                        return FourierTransformsPartial.ft_dh_dtau_Im(freq, R/A0, φ1, f1, τ1)
+                    elseif variable == "R"
+                        return FourierTransformsPartial.ft_dh_dR_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                    elseif variable == "dphi"
+                        return FourierTransformsPartial.ft_dh_ddphi1_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                    elseif variable == "A0"
+                        return FourierTransformsPartial.ft_dh_dA0_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                    elseif variable == "phi0"
+                        return FourierTransformsPartial.ft_dh_dphitau_Im(freq, A0, φ0, f0, τ0)
+                    else 
+                        error("Fourir_d2modes first argument should be: \n 
+                            \"f0\", \"tau0\", \"f1\", \"tau1\", \"R\", \"dphi\", \"A0\", \"phi0\".")
+                    end
                 else 
-                    error("Fourir_d2modes first argument should be: \n 
-                        \"f0\", \"tau0\", \"f1\", \"tau1\", \"R\", \"dphi\", \"A0\", \"phi0\".")
+                    error("Fourir_d2modes second argument should be \"real\" or \"imaginary\".")
                 end
-            elseif part == "imaginary"
-                if variable == "f0"
-                    return FourierTransformsPartial.ft_dh_dfQ_Im(freq, A0, φ0, f0, pi*f0*τ0)
-                elseif variable == "Q0"
-                    return FourierTransformsPartial.ft_dh_dQ_Im(freq, A0, φ0, f0, pi*f0*τ0)
-                elseif variable == "f1"
-                    return FourierTransformsPartial.ft_dh_dfQ_Im(freq, R/A0, φ1, f1, pi*f1*τ1)
-                elseif variable == "Q1"
-                    return FourierTransformsPartial.ft_dh_dQ_Im(freq, R/A0, φ1, f1, pi*f1*τ1)
-                elseif variable == "R"
-                    return FourierTransformsPartial.ft_dh_dR_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
-                elseif variable == "dphi"
-                    return FourierTransformsPartial.ft_dh_ddphi1_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
-                elseif variable == "A0"
-                    return FourierTransformsPartial.ft_dh_dA0_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
-                elseif variable == "phi0"
-                    return FourierTransformsPartial.ft_dh_dphitau_Im(freq, A0, φ0, f0, τ0)
+            elseif decay == "Q"
+                # quality factor Q = π*f*tau
+                if part == "real"
+                    if variable == "f0"
+                        return FourierTransformsPartial.ft_dh_dfQ_Re(freq, A0, φ0, f0, pi*f0*τ0)
+                    elseif variable == "Q0"
+                        return FourierTransformsPartial.ft_dh_dQ_Re(freq, A0, φ0, f0, pi*f0*τ0)
+                    elseif variable == "f1"
+                        return FourierTransformsPartial.ft_dh_dfQ_Re(freq, R/A0, φ1, f1, pi*f1*τ1)
+                    elseif variable == "Q1"
+                        return FourierTransformsPartial.ft_dh_dQ_Re(freq, R/A0, φ1, f1, pi*f1*τ1)
+                    elseif variable == "R"
+                        return FourierTransformsPartial.ft_dh_dR_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                    elseif variable == "dphi"
+                        return FourierTransformsPartial.ft_dh_ddphi1_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                    elseif variable == "A0"
+                        return FourierTransformsPartial.ft_dh_dA0_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                    elseif variable == "phi0"
+                        return FourierTransformsPartial.ft_dh_dphitau_Re(freq, A0, φ0, f0, τ0)
+                    else 
+                        error("Fourir_d2modes first argument should be: \n 
+                            \"f0\", \"tau0\", \"f1\", \"tau1\", \"R\", \"dphi\", \"A0\", \"phi0\".")
+                    end
+                elseif part == "imaginary"
+                    if variable == "f0"
+                        return FourierTransformsPartial.ft_dh_dfQ_Im(freq, A0, φ0, f0, pi*f0*τ0)
+                    elseif variable == "Q0"
+                        return FourierTransformsPartial.ft_dh_dQ_Im(freq, A0, φ0, f0, pi*f0*τ0)
+                    elseif variable == "f1"
+                        return FourierTransformsPartial.ft_dh_dfQ_Im(freq, R/A0, φ1, f1, pi*f1*τ1)
+                    elseif variable == "Q1"
+                        return FourierTransformsPartial.ft_dh_dQ_Im(freq, R/A0, φ1, f1, pi*f1*τ1)
+                    elseif variable == "R"
+                        return FourierTransformsPartial.ft_dh_dR_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                    elseif variable == "dphi"
+                        return FourierTransformsPartial.ft_dh_ddphi1_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                    elseif variable == "A0"
+                        return FourierTransformsPartial.ft_dh_dA0_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                    elseif variable == "phi0"
+                        return FourierTransformsPartial.ft_dh_dphitau_Im(freq, A0, φ0, f0, τ0)
+                    else 
+                        error("Fourir_d2modes first argument should be: \n 
+                            \"f0\", \"tau0\", \"f1\", \"tau1\", \"R\", \"dphi\", \"A0\", \"phi0\".")
+                    end
                 else 
-                    error("Fourir_d2modes first argument should be: \n 
-                        \"f0\", \"tau0\", \"f1\", \"tau1\", \"R\", \"dphi\", \"A0\", \"phi0\".")
+                    error("Fourir_d2modes second argument should be \"real\" or \"imaginary\".")
                 end
             else 
-                error("Fourir_d2modes second argument should be \"real\" or \"imaginary\".")
+                error("Fourir_d2modes last argument should be \"tau\" or \"Q\".")
             end
-        else 
-            error("Fourir_d2modes last argument should be \"tau\" or \"Q\".")
+        else
+            error("convention argument must be set to \"FH\" or \"EF\".")
         end
     end
 
-    using ..FourierTransformsPartialFH
-
-    function Fourier_d1mode_FH(variable, part, freq, A, φ, f, τ, decay = "tau")
-        ## Consider modes are written independently: 
-        ### Re(QNM) = A0*exp(-ωi0*t)*cos(ωr0*t - φ0) + A1*exp(-ωi1*t)*cos(ωr1*t - φ1)
-        ### Im(QNM) = A0*exp(-ωi0*t)*sin(ωr0*t - φ0) + A1*exp(-ωi1*t)*sin(ωr1*t - φ1)
-        if decay == "tau"
-            if part == "real"
-                if variable == "f"
-                    return FourierTransformsPartialFH.ft_dh_df_Re(freq, A, φ, f, τ)
-                elseif variable == "tau"
-                    return FourierTransformsPartialFH.ft_dh_dtau_Re(freq, A, φ, f, τ)
-                elseif variable == "A"
-                    return FourierTransformsPartialFH.ft_dh_dAtau_Re(freq, A, φ, f, τ)
-                elseif variable == "phi"
-                    return FourierTransformsPartialFH.ft_dh_dphitau_Re(freq, A, φ, f, τ)
-                else 
-                    error("Fourier_d1mode first argument should be \"f\", \"tau\", \"A\", \"phi\".")
-                end
-            elseif part == "imaginary"
-                if variable == "f"
-                    return FourierTransformsPartialFH.ft_dh_df_Im(freq, A, φ, f, τ)
-                elseif variable == "tau"
-                    return FourierTransformsPartialFH.ft_dh_dtau_Im(freq, A, φ, f, τ)
-                elseif variable == "A"
-                    return FourierTransformsPartialFH.ft_dh_dAtau_Im(freq, A, φ, f, τ)
-                elseif variable == "phi"
-                    return FourierTransformsPartialFH.ft_dh_dphitau_Im(freq, A, φ, f, τ)
-                else 
-                    error("Fourier_d1mode first argument should be \"f\", \"tau\", \"A\", \"phi\".")
-                end
-            else 
-                error("Fourier_d1mode second argument should be \"real\" or \"imaginary\".")
-            end
-        elseif decay == "Q"
-            # quality factor Q = π*f*τ
-            if part == "real"
-                if variable == "f"
-                    return FourierTransformsPartialFH.ft_dh_dfQ_Re(freq, A, φ, f, pi*f*τ)
-                elseif variable == "Q"
-                    return FourierTransformsPartialFH.ft_dh_dQ_Re(freq, A, φ, f, pi*f*τ)
-                elseif variable == "A"
-                    return FourierTransformsPartialFH.ft_dh_dAQ_Re(freq, A, φ, f, pi*f*τ)
-                elseif variable == "phi"
-                    return FourierTransformsPartialFH.ft_dh_dphiQ_Re(freq, A, φ, f, pi*f*τ)
-                else 
-                    error("Fourier_d1mode first argument should be \"f\", \"Q\", \"A\", \"phi\".")
-                end
-            elseif part == "imaginary"
-                if variable == "f"
-                    return FourierTransformsPartialFH.ft_dh_dfQ_Im(freq, A, φ, f, pi*f*τ)
-                elseif variable == "Q"
-                    return FourierTransformsPartialFH.ft_dh_dQ_Im(freq, A, φ, f, pi*f*τ)
-                elseif variable == "A"
-                    return FourierTransformsPartialFH.ft_dh_dAQ_Im(freq, A, φ, f, pi*f*τ)
-                elseif variable == "phi"
-                    return FourierTransformsPartialFH.ft_dh_dphiQ_Im(freq, A, φ, f, pi*f*τ)
-                else 
-                    error("Fourier_d1mode first argument should be \"f\", \"Q\", \"A\", \"phi\".")
-                end
-            else 
-                error("Fourier_d1mode second argument should be \"real\" or \"imaginary\".")
-            end
-        else 
-            error("Fourier_d1mode last argument should be \"tau\" or \"Q\".")
-        end
-    end
-    
-    function Fourier_d2modes_FH(variable, part, freq, A0, φ0, f0, τ0, R, φ1, f1, τ1, decay = "tau")
-        ## Consider modes overall amplitude A0
-        ## Re(QNM) = A0*(exp(-ωi0*t)*cos(ωr0*t - φ0) + R*exp(-ωi1*t)*cos(ωr1*t - φ1))
-        if decay == "tau"
-            if part == "real"
-                if variable == "f0"
-                    return FourierTransformsPartialFH.ft_dh_df_Re(freq, A0, φ0, f0, τ0)
-                elseif variable == "tau0"
-                    return FourierTransformsPartialFH.ft_dh_dtau_Re(freq, A0, φ0, f0, τ0)
-                elseif variable == "f1"
-                    return FourierTransformsPartialFH.ft_dh_df_Re(freq, R/A0, φ1, f1, τ1)
-                elseif variable == "tau1"
-                    return FourierTransformsPartialFH.ft_dh_dtau_Re(freq, R/A0, φ1, f1, τ1)
-                elseif variable == "R"
-                    return FourierTransformsPartialFH.ft_dh_dR_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
-                elseif variable == "dphi"
-                    return FourierTransformsPartialFH.ft_dh_ddphi1_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
-                elseif variable == "A0"
-                    return FourierTransformsPartialFH.ft_dh_dA0_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
-                elseif variable == "phi0"
-                    return FourierTransformsPartialFH.ft_dh_dphitau_Re(freq, A0, φ0, f0, τ0)
-                else 
-                    error("Fourir_d2modes first argument should be: \n 
-                        \"f0\", \"tau0\", \"f1\", \"tau1\", \"R\", \"dphi\", \"A0\", \"phi0\".")
-                end
-            elseif part == "imaginary"
-                if variable == "f0"
-                    return FourierTransformsPartialFH.ft_dh_df_Im(freq, A0, φ0, f0, τ0)
-                elseif variable == "tau0"
-                    return FourierTransformsPartialFH.ft_dh_dtau_Im(freq, A0, φ0, f0, τ0)
-                elseif variable == "f1"
-                    return FourierTransformsPartialFH.ft_dh_df_Im(freq, R/A0, φ1, f1, τ1)
-                elseif variable == "tau1"
-                    return FourierTransformsPartialFH.ft_dh_dtau_Im(freq, R/A0, φ1, f1, τ1)
-                elseif variable == "R"
-                    return FourierTransformsPartialFH.ft_dh_dR_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
-                elseif variable == "dphi"
-                    return FourierTransformsPartialFH.ft_dh_ddphi1_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
-                elseif variable == "A0"
-                    return FourierTransformsPartialFH.ft_dh_dA0_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
-                elseif variable == "phi0"
-                    return FourierTransformsPartialFH.ft_dh_dphitau_Im(freq, A0, φ0, f0, τ0)
-                else 
-                    error("Fourir_d2modes first argument should be: \n 
-                        \"f0\", \"tau0\", \"f1\", \"tau1\", \"R\", \"dphi\", \"A0\", \"phi0\".")
-                end
-            else 
-                error("Fourir_d2modes second argument should be \"real\" or \"imaginary\".")
-            end
-        elseif decay == "Q"
-            # quality factor Q = π*f*tau
-            if part == "real"
-                if variable == "f0"
-                    return FourierTransformsPartialFH.ft_dh_dfQ_Re(freq, A0, φ0, f0, pi*f0*τ0)
-                elseif variable == "Q0"
-                    return FourierTransformsPartialFH.ft_dh_dQ_Re(freq, A0, φ0, f0, pi*f0*τ0)
-                elseif variable == "f1"
-                    return FourierTransformsPartialFH.ft_dh_dfQ_Re(freq, R/A0, φ1, f1, pi*f1*τ1)
-                elseif variable == "Q1"
-                    return FourierTransformsPartialFH.ft_dh_dQ_Re(freq, R/A0, φ1, f1, pi*f1*τ1)
-                elseif variable == "R"
-                    return FourierTransformsPartialFH.ft_dh_dR_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
-                elseif variable == "dphi"
-                    return FourierTransformsPartialFH.ft_dh_ddphi1_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
-                elseif variable == "A0"
-                    return FourierTransformsPartialFH.ft_dh_dA0_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
-                elseif variable == "phi0"
-                    return FourierTransformsPartialFH.ft_dh_dphitau_Re(freq, A0, φ0, f0, τ0)
-                else 
-                    error("Fourir_d2modes first argument should be: \n 
-                        \"f0\", \"tau0\", \"f1\", \"tau1\", \"R\", \"dphi\", \"A0\", \"phi0\".")
-                end
-            elseif part == "imaginary"
-                if variable == "f0"
-                    return FourierTransformsPartialFH.ft_dh_dfQ_Im(freq, A0, φ0, f0, pi*f0*τ0)
-                elseif variable == "Q0"
-                    return FourierTransformsPartialFH.ft_dh_dQ_Im(freq, A0, φ0, f0, pi*f0*τ0)
-                elseif variable == "f1"
-                    return FourierTransformsPartialFH.ft_dh_dfQ_Im(freq, R/A0, φ1, f1, pi*f1*τ1)
-                elseif variable == "Q1"
-                    return FourierTransformsPartialFH.ft_dh_dQ_Im(freq, R/A0, φ1, f1, pi*f1*τ1)
-                elseif variable == "R"
-                    return FourierTransformsPartialFH.ft_dh_dR_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
-                elseif variable == "dphi"
-                    return FourierTransformsPartialFH.ft_dh_ddphi1_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
-                elseif variable == "A0"
-                    return FourierTransformsPartialFH.ft_dh_dA0_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
-                elseif variable == "phi0"
-                    return FourierTransformsPartialFH.ft_dh_dphitau_Im(freq, A0, φ0, f0, τ0)
-                else 
-                    error("Fourir_d2modes first argument should be: \n 
-                        \"f0\", \"tau0\", \"f1\", \"tau1\", \"R\", \"dphi\", \"A0\", \"phi0\".")
-                end
-            else 
-                error("Fourir_d2modes second argument should be \"real\" or \"imaginary\".")
-            end
-        else 
-            error("Fourir_d2modes last argument should be \"tau\" or \"Q\".")
-        end
-    end
-
-    export Fourier_1mode, PowerSpectrum_2modes, Fourier_2QNMs, Fourier_d2modes, Fourier_d2modes_FH
-
+    export Fourier_1mode, PowerSpectrum_2modes, Fourier_2QNMs, Fourier_d2modes
 end
+
 module Quantities
     function trapezio(f, x)
         y = 0
@@ -782,6 +759,54 @@ module Quantities
         return D_L
     end
 
-    export trapezio, inner_product, SNR_QNM, luminosity_distance
-end
+    using DelimitedFiles, Dierckx
+    function ImportDetectorStrain(detector)
+        # TODO: Add Einstein Telescope curve 
+        # import PSD noise
+        ## LISA Strain
+        LISA_strain = readdlm("../detectors/LISA_Strain_Sensitivity_range.txt", comments=true, comment_char='#')
+        ## LIGO Design sensitivity
+        aLIGO_strain = readdlm("../detectors/aLIGODesign.txt", comments=true, comment_char='#')
+        ## Cosmic Explorer sensitivity
+            ### silica
+        CE2silica = readdlm("../detectors/CE/CE2silica.txt", comments=true, comment_char='#')
+            ### silicon
+        CE2silicon = readdlm("../detectors/CE/CE2silicon.txt", comments=true, comment_char='#')
+        ## Einstein Telescope
+        ET = readdlm("../detectors/ET/ETDSensitivityCurve.txt", comments=true, comment_char='#')
+        
+        # choose noise
+        noise = Dict()
+        if detector == "LIGO"
+            noise["freq"], noise["psd"] = aLIGO_strain[:,1], aLIGO_strain[:,2]
+            noise["name"] = "Design sensitivity"
+            # limit maximum frequency
+            noise["psd"] = noise["psd"][(noise["freq"] .< 5000)]
+            noise["freq"] = noise["freq"][(noise["freq"] .< 5000)]
+    
+        elseif detector == "LISA"
+            noise["freq"], noise["psd"] = LISA_strain[:,1], LISA_strain[:,2]
+            noise["name"] = "LISA sensitivity"
+    
+        elseif detector == "ET"
+            noise["freq"], noise["psd"] = ET[:,1], ET[:,4]
+            noise["name"] = "ET_D sum sensitivity"
+    
+        elseif detector == "CE" || detector == "CE2silicon"
+            noise["freq"], noise["psd"] = CE2silicon[:,1], CE2silicon[:,2]
+            noise["name"] = "CE silicon sensitivity"
+    
+        elseif detector == "CE2silica"
+            noise["freq"], noise["psd"] = CE2silica[:,1], CE2silica[:,2]
+            noise["name"] = "CE silica sensitivity"
+        else
+            return error("Wrong detector option! Choose \"LIGO\", \"LISA\", \"CE\" = \"CE2silicon\", \"CE2silica\" or \"ET\"")
+        end
+    
+        # interpolate noise curve (Dierckx library)
+        itp = Spline1D(noise["freq"], noise["psd"])
+        return noise, itp
+    end
 
+    export trapezio, inner_product, SNR_QNM, luminosity_distance, ImportDetectorStrain
+end
