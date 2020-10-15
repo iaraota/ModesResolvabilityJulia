@@ -135,22 +135,207 @@ module FourierTransformsPartial
     end
 end
 
+module FourierTransformsPartialFH
+    # fourier transform of the derivative of the strain
+    ## used to compute Fisher matrix 
+    ## eqs. (4.4) and (7.4) of https://arxiv.org/pdf/gr-qc/0512160.pdf
+    ##relative to frequency f (with tau)
+    ### real part
+    function ft_dh_df_Re(f, A_lmn, ϕ_lmn, f_lmn, τ_lmn)
+        return 8*A_lmn*exp(-1im*ϕ_lmn)*π^2*τ_lmn^3*(
+            exp(2im*ϕ_lmn)*(f - f_lmn)/(1 + (2π*τ_lmn*(f - f_lmn))^2)^2
+            - (f + f_lmn)/(1 + (2π*τ_lmn*(f + f_lmn))^2)^2
+            )/2
+    end
+
+    ### imaginary part
+    function ft_dh_df_Im(f, A_lmn, ϕ_lmn, f_lmn, τ_lmn)
+        return 8im*A_lmn*exp(-1im*ϕ_lmn)*π^2*τ_lmn^3*(
+            exp(2im*ϕ_lmn)*(f - f_lmn)/(1 + (2π*τ_lmn*(f - f_lmn))^2)^2 
+            + (f + f_lmn)/(1 + (2π*τ_lmn*(f + f_lmn))^2)^2 
+        )/2
+    end
+
+    ## relative to decay time tau
+    ### real part
+    function ft_dh_dtau_Re(f, A_lmn, ϕ_lmn, f_lmn, τ_lmn)
+        return A_lmn*exp(-1im*ϕ_lmn)*(exp(2im*ϕ_lmn)*(
+            1 - (2π*τ_lmn*(f - f_lmn))^2)/(1 + (2π*τ_lmn*(f - f_lmn))^2)^2 
+            + (1 - (2π*τ_lmn*(f + f_lmn))^2)/(1 + (2π*τ_lmn*(f + f_lmn))^2)^2
+            )/2
+    end
+
+    ### imaginary part
+    function ft_dh_dtau_Im(f, A_lmn, ϕ_lmn, f_lmn, τ_lmn)
+        return -1im*A_lmn*exp(-1im*ϕ_lmn)*(
+            exp(2im*ϕ_lmn)*(-1 + 2π*τ_lmn*(f - f_lmn))*(1 + 2π*τ_lmn*(f - f_lmn))/(1 + (2π*τ_lmn*(f - f_lmn))^2)^2
+            + (1 - (2π*τ_lmn*(f + f_lmn))^2)/ (1 + (2π*τ_lmn*(f + f_lmn))^2)^2
+        )/2
+    end
+
+    ## relative to amplitude A
+    function ft_dh_dAtau_Re(f, A_lmn, ϕ_lmn, f_lmn, τ_lmn)
+        return τ_lmn*(exp(1im*ϕ_lmn)/(1 + (2π*τ_lmn*(f - f_lmn))^2) + exp(-1im*ϕ_lmn)/(1 + (2π*τ_lmn*(f + f_lmn))^2))/2
+    end
+
+    function ft_dh_dAtau_Im(f, A_lmn, ϕ_lmn, f_lmn, τ_lmn)
+        return 1im*τ_lmn*(exp(1im*ϕ_lmn)/(1 + (2π*τ_lmn*(f - f_lmn))^2) - exp(-1im*ϕ_lmn)/(1 + (2π*τ_lmn*(f + f_lmn))^2))/2
+    end
+
+    ## relative to phase phi
+    function ft_dh_dphitau_Re(f, A_lmn, ϕ_lmn, f_lmn, τ_lmn)
+        return 1im*A_lmn*τ_lmn*(exp(1im*ϕ_lmn)/(1 + (2π*τ_lmn*(f - f_lmn))^2) - exp(-1im*ϕ_lmn)/(1 + (2π*τ_lmn*(f + f_lmn))^2))/2
+    end
+
+    function ft_dh_dphitau_Im(f, A_lmn, ϕ_lmn, f_lmn, τ_lmn)
+        return -A_lmn*τ_lmn*(exp(1im*ϕ_lmn)/(1 + (2π*τ_lmn*(f - f_lmn))^2) + exp(-1im*ϕ_lmn)/(1 + (2π*τ_lmn*(f + f_lmn))^2))/2
+    end
+
+    ## Two modes as function of amplitude ratio R and phase difference dphi
+    ## relative to amplitude A 
+    function ft_dh_dA0_tau_Re(f, A_0, ϕ_0, f_0, τ_0, R, dϕ, f_1, τ_1)
+        return exp(-1im*ϕ_0)*(
+            exp(2im*ϕ_0)*τ_0/(1 + (2π*τ_0*(f - f_0))^2) +
+            τ_0/(1 + (2π*τ_0*(f + f_0))^2) + 
+            exp(-1im*(dϕ - 2*ϕ_0))*R*τ_1/(1 + (2π*τ_1*(f - f_1))^2) + 
+            exp(1im*dϕ)*R*τ_1/(1 + (2π*τ_1*(f + f_1))^2)
+        )/2
+    end
+
+    function ft_dh_dA0_tau_Im(f, A_0, ϕ_0, f_0, τ_0, R, dϕ, f_1, τ_1)
+        return 1im*exp(-1im*ϕ_0)*(
+            exp(2im*ϕ_0)*τ_0/(1 + (2π*τ_0*(f - f_0))^2) -
+            τ_0/(1 + (2π*τ_0*(f + f_0))^2) + 
+            exp(-1im*(dϕ - 2*ϕ_0))*R*τ_1/(1 + (2π*τ_1*(f - f_1))^2) -
+            exp(1im*dϕ)*R*τ_1/(1 + (2π*τ_1*(f + f_1))^2)
+        )/2
+    end
+
+    ## relative to de amplitude ratio R
+
+    function ft_dh_dR_tau_Re(f, A_0, ϕ_0, f_0, τ_0, R, dϕ, f_1, τ_1)
+        return A_0*τ_1*(
+            exp(-1im*(dϕ - ϕ_0))/(1 + (2π*τ_1*(f - f_1))^2) +
+            exp(1im*(dϕ - ϕ_0))/(1 + (2π*τ_1*(f + f_1))^2)
+        )/2
+    end
+
+    function ft_dh_dR_tau_Im(f, A_0, ϕ_0, f_0, τ_0, R, dϕ, f_1, τ_1)
+        return 1im*A_0*τ_1*(
+            exp(-1im*(dϕ - ϕ_0))/(1 + (2π*τ_1*(f - f_1))^2) -
+            exp(1im*(dϕ - ϕ_0))/(1 + (2π*τ_1*(f + f_1))^2)
+        )/2
+    end
+
+    ## relative to the phase difference dphi
+    function ft_dh_ddphi1_tau_Re(f, A_0, ϕ_0, f_0, τ_0, R, dϕ, f_1, τ_1)
+        return -1im*A_0*exp(-1im*(dϕ + ϕ_0))*R*τ_1*(
+            exp(2im*ϕ_0)/(1 + (2π*τ_1*(f - f_1))^2)
+            - exp(2im*dϕ)/(1 + (2π*τ_1*(f + f_1))^2)
+        )/2
+    end
+
+    function ft_dh_ddphi1_tau_Im(f, A_0, ϕ_0, f_0, τ_0, R, dϕ, f_1, τ_1)
+        return A_0*exp(-1im*(dϕ + ϕ_0))*R*τ_1*(
+            exp(2im*ϕ_0)/(1 + (2π*τ_1*(f - f_1))^2)
+            + exp(2im*dϕ)/(1 + (2π*τ_1*(f + f_1))^2)
+        )/2
+    end
+
+    ## relative to the frequency f (with quality factor)
+    ### real part
+    function ft_dh_dfQ_Re(f, A_lmn, ϕ_lmn, f_lmn, Q_lmn)
+        return A_lmn*exp(-1im*ϕ_lmn)*(Q_lmn/π)*((2*f*Q_lmn)^2 - f_lmn^2*(1 + 4*Q_lmn^2))*(
+            exp(2im*ϕ_lmn)/(f_lmn^2 + (2*Q_lmn*(f - f_lmn))^2)^2 +
+            1/(f_lmn^2 +(2*Q_lmn*(f + f_lmn))^2)^2
+        )/2
+    end
+
+    function ft_dh_dfQ_Im(f, A_lmn, ϕ_lmn, f_lmn, Q_lmn)
+        return 1im*A_lmn*exp(-1im*ϕ_lmn)*(Q_lmn/π)*(f_lmn^2 - 4*Q_lmn^2*(f - f_lmn)*(f + f_lmn))*(
+            exp(2im*ϕ_lmn)/(f_lmn^2 + (2*Q_lmn*(f - f_lmn))^2)^2 -
+            1/(f_lmn^2 +(2*Q_lmn*(f + f_lmn))^2)^2
+        )/2
+    end
+
+    ## relative to quality factor Q = pi*f*tau
+    ### real part
+    function ft_dh_dQ_Re(f, A_lmn, ϕ_lmn, f_lmn, Q_lmn)
+        return A_lmn*exp(-1im*ϕ_lmn)*(f_lmn/π)*(
+            (f_lmn^2 - (2*Q_lmn*(f + f_lmn))^2)/(f_lmn^2 + (2*Q_lmn*(f + f_lmn))^2)^2 +
+            exp(2im*ϕ_lmn)*(f_lmn - 2*(f - f_lmn)*Q_lmn)*(f_lmn + 2*Q_lmn*(f - f_lmn))/(
+                f_lmn^2 + (2*Q_lmn*(f - f_lmn))^2
+            )^2
+        )/2
+    end
+
+    function ft_dh_dQ_Im(f, A_lmn, ϕ_lmn, f_lmn, Q_lmn)
+        return -1im*A_lmn*exp(-1im*ϕ_lmn)*(f_lmn/π)*(
+            (f_lmn^2 - (2*Q_lmn*(f + f_lmn))^2)/(f_lmn^2 + (2*Q_lmn*(f + f_lmn))^2)^2 -
+            exp(2im*ϕ_lmn)*(f_lmn - 2*(f - f_lmn)*Q_lmn)*(f_lmn + 2*Q_lmn*(f - f_lmn))/(
+                f_lmn^2 + (2*Q_lmn*(f - f_lmn))^2
+            )^2
+        )/2
+    end
+
+    ## relative to amplitude A
+    function ft_dh_dAQ_Re(f, A_lmn, ϕ_lmn, f_lmn, Q_lmn)
+        return exp(-1im*ϕ_lmn)*f_lmn*(Q_lmn/π)*(
+            exp(2im*ϕ_lmn)/(f_lmn^2 + (2*Q_lmn*(f - f_lmn))^2) + 
+            1/(f_lmn^2 + (2*Q_lmn*(f + f_lmn))^2)
+        )/2
+    end
+
+    function ft_dh_dAQ_Im(f, A_lmn, ϕ_lmn, f_lmn, Q_lmn)
+        return 1im*exp(-1im*ϕ_lmn)*f_lmn*(Q_lmn/π)*(
+            exp(2im*ϕ_lmn)/(f_lmn^2 + (2*Q_lmn*(f - f_lmn))^2) -
+            1/(f_lmn^2 + (2*Q_lmn*(f + f_lmn))^2)
+        )/2
+    end
+
+    ## relative to phase phi
+    function ft_dh_dphiQ_Re(f, A_lmn, ϕ_lmn, f_lmn, Q_lmn)
+        return 1im*A_lmn*exp(1im*ϕ_lmn)*f_lmn*Q_lmn*(
+            exp(2im*ϕ_lmn)/(f_lmn^2 + (2*Q_lmn*(f - f_lmn))^2) -
+            1/(f_lmn^2 + (2*Q_lmn*(f + f_lmn))^2)
+        )/2
+    end
+
+    function ft_dh_dphiQ_Im(f, A_lmn, ϕ_lmn, f_lmn, Q_lmn)
+        return - A_lmn*exp(1im*ϕ_lmn)*f_lmn*Q_lmn*(
+            exp(2im*ϕ_lmn)/(f_lmn^2 + (2*Q_lmn*(f - f_lmn))^2) +
+            1/(f_lmn^2 + (2*Q_lmn*(f + f_lmn))^2)
+        )/2
+    end
+end
+
 module FrequencyTransforms
-    function Fourier_1mode(part, f, A, φ, ωr, ωi)
+    function Fourier_1mode(part, f, A, φ, ωr, ωi, convention = "FH")
         ## compute the fourier transform of a single QNM
         ## fourier_QNM = \int_0^inf QNM
         ## QNM real part = A*exp(-ω_t*t)*cos(ω_r*t - φ)
         ## QNM imsaginary part = A*exp(-ω_t*t)*sin(ω_r*t - φ)
         ## part = "psd" returns the power spectrum of Re(QNM) + i Im(QNM)
-
-        if part == "real"
-            return A*((1im*2*pi*f + ωi)*cos(φ) + ωr*sin(φ)) / (ωr^2 - (2*pi*f - 1im*ωi)^2)
-        elseif part == "imaginary"
-            return -A*(-(1im*2*pi*f + ωi)*sin(φ) + ωr*cos(φ)) / (-ωr^2 + (2*pi*f - 1im*ωi)^2)
-        elseif part == "psd"
-            return A^2 / (ωi^2 + (ωr - 2*pi*f)^2) 
-        else 
-            error("fisrt argument of fourier_single_mode must be set to \"real\", \"imaginary\" or \"psd\".")
+        if convention == "EF"
+            if part == "real"
+                return A*((1im*2*pi*f + ωi)*cos(φ) + ωr*sin(φ)) / (ωr^2 - (2*pi*f - 1im*ωi)^2)
+            elseif part == "imaginary"
+                return -A*(-(1im*2*pi*f + ωi)*sin(φ) + ωr*cos(φ)) / (-ωr^2 + (2*pi*f - 1im*ωi)^2)
+            elseif part == "psd"
+                return A^2 / (ωi^2 + (ωr - 2*pi*f)^2) 
+            else 
+                error("fisrt argument of fourier_single_mode must be set to \"real\", \"imaginary\" or \"psd\".")
+            end
+        elseif convention == "FH"
+            if part == "real"
+                return A*ωi*(exp(1im*φ)/(ωi^2 + (-2π*f + ωr)^2) + exp(-1im*φ)/(ωi^2 + (2π*f + ωr)^2))/2
+            elseif part == "imaginary"
+                return 1im*A*ωi*(exp(1im*φ)/(ωi^2 + (-2π*f + ωr)^2) - exp(-1im*φ)/(ωi^2 + (2π*f + ωr)^2))/2
+            else 
+                error("fisrt argument of fourier_single_mode must be set to \"real\" or \"imaginary\".")
+            end
+        else
+            error("convention argument must be set to \"FH\" or \"EF\".")
         end
     end 
 
@@ -172,25 +357,30 @@ module FrequencyTransforms
 
     end 
 
-    function Fourier_2QNMs(freq, amplitudes, phases, omega, mode_1, mode_2, time_unit, strain_unit)
+
+    function Fourier_2QNMs(freq, amplitudes, phases, omega, mode_1, mode_2, time_unit, strain_unit, convention = "FH")
         ## Fourier transfor of two QNMs
         ## These are given in SI units
         ## time_unit and strain_unit, trasforms numerial units in SI units
         ## returns dictionaries for real and imaginary fourier transforms of QNM1, QNM2 and QNM1 + QNM2
         ft_Re, ft_Im = Dict(), Dict()
 
-        ft_Re[mode_1] = time_unit*strain_unit*abs.(Fourier_1mode.("real", freq*time_unit, amplitudes[mode_1], phases[mode_1], omega[mode_1][1], omega[mode_1][2]))
-        ft_Re[mode_2] = time_unit*strain_unit*abs.(Fourier_1mode.("real", freq*time_unit, amplitudes[mode_2], phases[mode_2], omega[mode_2][1], omega[mode_2][2]))
-        ft_Re[mode_1*" + "*mode_2] = abs.(Fourier_1mode.("real", freq*time_unit, amplitudes[mode_1], phases[mode_1], omega[mode_1][1], omega[mode_1][2]) +
-        Fourier_1mode.("real", freq*time_unit, amplitudes[mode_2], phases[mode_2], omega[mode_2][1], omega[mode_2][2]))*time_unit*strain_unit
-
-        ft_Im[mode_1] = time_unit*strain_unit*abs.(Fourier_1mode.("imaginary", freq*time_unit, amplitudes[mode_1], phases[mode_1], omega[mode_1][1], omega[mode_1][2]))
-        ft_Im[mode_2] = time_unit*strain_unit*abs.(Fourier_1mode.("imaginary", freq*time_unit, amplitudes[mode_2], phases[mode_2], omega[mode_2][1], omega[mode_2][2]))
-        ft_Im[mode_1*" + "*mode_2] = abs.(Fourier_1mode.("imaginary", freq*time_unit, amplitudes[mode_1], phases[mode_1], omega[mode_1][1], omega[mode_1][2]) +
-        Fourier_1mode.("imaginary", freq*time_unit, amplitudes[mode_2], phases[mode_2], omega[mode_2][1], omega[mode_2][2]))*time_unit*strain_unit
-
+        if convention == "FH" || convention == "EF"
+            ft_Re[mode_1] = time_unit*strain_unit*abs.(Fourier_1mode.("real", freq.*time_unit, amplitudes[mode_1], phases[mode_1], omega[mode_1][1], omega[mode_1][2], convention))
+            ft_Re[mode_2] = time_unit*strain_unit*abs.(Fourier_1mode.("real", freq.*time_unit, amplitudes[mode_2], phases[mode_2], omega[mode_2][1], omega[mode_2][2], convention))
+            ft_Re[mode_1*" + "*mode_2] = abs.(Fourier_1mode.("real", freq.*time_unit, amplitudes[mode_1], phases[mode_1], omega[mode_1][1], omega[mode_1][2], convention) +
+            Fourier_1mode.("real", freq*time_unit, amplitudes[mode_2], phases[mode_2], omega[mode_2][1], omega[mode_2][2], convention))*time_unit*strain_unit
+    
+            ft_Im[mode_1] = time_unit*strain_unit*abs.(Fourier_1mode.("imaginary", freq.*time_unit, amplitudes[mode_1], phases[mode_1], omega[mode_1][1], omega[mode_1][2], convention))
+            ft_Im[mode_2] = time_unit*strain_unit*abs.(Fourier_1mode.("imaginary", freq.*time_unit, amplitudes[mode_2], phases[mode_2], omega[mode_2][1], omega[mode_2][2], convention))
+            ft_Im[mode_1*" + "*mode_2] = abs.(Fourier_1mode.("imaginary", freq.*time_unit, amplitudes[mode_1], phases[mode_1], omega[mode_1][1], omega[mode_1][2], convention) +
+            Fourier_1mode.("imaginary", freq.*time_unit, amplitudes[mode_2], phases[mode_2], omega[mode_2][1], omega[mode_2][2], convention))*time_unit*strain_unit    
+        else
+            error("convention argument must be set to \"FH\" or \"EF\".")
+        end
         return ft_Re, ft_Im
     end
+
 
     # fourier transform of the partial derivative of the QNM 
     # used to compute Fisher matrix 
@@ -363,7 +553,176 @@ module FrequencyTransforms
         end
     end
 
-    export Fourier_1mode, PowerSpectrum_2modes, Fourier_2QNMs, Fourier_d2modes
+    using ..FourierTransformsPartialFH
+
+    function Fourier_d1mode_FH(variable, part, freq, A, φ, f, τ, decay = "tau")
+        ## Consider modes are written independently: 
+        ### Re(QNM) = A0*exp(-ωi0*t)*cos(ωr0*t - φ0) + A1*exp(-ωi1*t)*cos(ωr1*t - φ1)
+        ### Im(QNM) = A0*exp(-ωi0*t)*sin(ωr0*t - φ0) + A1*exp(-ωi1*t)*sin(ωr1*t - φ1)
+        if decay == "tau"
+            if part == "real"
+                if variable == "f"
+                    return FourierTransformsPartialFH.ft_dh_df_Re(freq, A, φ, f, τ)
+                elseif variable == "tau"
+                    return FourierTransformsPartialFH.ft_dh_dtau_Re(freq, A, φ, f, τ)
+                elseif variable == "A"
+                    return FourierTransformsPartialFH.ft_dh_dAtau_Re(freq, A, φ, f, τ)
+                elseif variable == "phi"
+                    return FourierTransformsPartialFH.ft_dh_dphitau_Re(freq, A, φ, f, τ)
+                else 
+                    error("Fourier_d1mode first argument should be \"f\", \"tau\", \"A\", \"phi\".")
+                end
+            elseif part == "imaginary"
+                if variable == "f"
+                    return FourierTransformsPartialFH.ft_dh_df_Im(freq, A, φ, f, τ)
+                elseif variable == "tau"
+                    return FourierTransformsPartialFH.ft_dh_dtau_Im(freq, A, φ, f, τ)
+                elseif variable == "A"
+                    return FourierTransformsPartialFH.ft_dh_dAtau_Im(freq, A, φ, f, τ)
+                elseif variable == "phi"
+                    return FourierTransformsPartialFH.ft_dh_dphitau_Im(freq, A, φ, f, τ)
+                else 
+                    error("Fourier_d1mode first argument should be \"f\", \"tau\", \"A\", \"phi\".")
+                end
+            else 
+                error("Fourier_d1mode second argument should be \"real\" or \"imaginary\".")
+            end
+        elseif decay == "Q"
+            # quality factor Q = π*f*τ
+            if part == "real"
+                if variable == "f"
+                    return FourierTransformsPartialFH.ft_dh_dfQ_Re(freq, A, φ, f, pi*f*τ)
+                elseif variable == "Q"
+                    return FourierTransformsPartialFH.ft_dh_dQ_Re(freq, A, φ, f, pi*f*τ)
+                elseif variable == "A"
+                    return FourierTransformsPartialFH.ft_dh_dAQ_Re(freq, A, φ, f, pi*f*τ)
+                elseif variable == "phi"
+                    return FourierTransformsPartialFH.ft_dh_dphiQ_Re(freq, A, φ, f, pi*f*τ)
+                else 
+                    error("Fourier_d1mode first argument should be \"f\", \"Q\", \"A\", \"phi\".")
+                end
+            elseif part == "imaginary"
+                if variable == "f"
+                    return FourierTransformsPartialFH.ft_dh_dfQ_Im(freq, A, φ, f, pi*f*τ)
+                elseif variable == "Q"
+                    return FourierTransformsPartialFH.ft_dh_dQ_Im(freq, A, φ, f, pi*f*τ)
+                elseif variable == "A"
+                    return FourierTransformsPartialFH.ft_dh_dAQ_Im(freq, A, φ, f, pi*f*τ)
+                elseif variable == "phi"
+                    return FourierTransformsPartialFH.ft_dh_dphiQ_Im(freq, A, φ, f, pi*f*τ)
+                else 
+                    error("Fourier_d1mode first argument should be \"f\", \"Q\", \"A\", \"phi\".")
+                end
+            else 
+                error("Fourier_d1mode second argument should be \"real\" or \"imaginary\".")
+            end
+        else 
+            error("Fourier_d1mode last argument should be \"tau\" or \"Q\".")
+        end
+    end
+    
+    function Fourier_d2modes_FH(variable, part, freq, A0, φ0, f0, τ0, R, φ1, f1, τ1, decay = "tau")
+        ## Consider modes overall amplitude A0
+        ## Re(QNM) = A0*(exp(-ωi0*t)*cos(ωr0*t - φ0) + R*exp(-ωi1*t)*cos(ωr1*t - φ1))
+        if decay == "tau"
+            if part == "real"
+                if variable == "f0"
+                    return FourierTransformsPartialFH.ft_dh_df_Re(freq, A0, φ0, f0, τ0)
+                elseif variable == "tau0"
+                    return FourierTransformsPartialFH.ft_dh_dtau_Re(freq, A0, φ0, f0, τ0)
+                elseif variable == "f1"
+                    return FourierTransformsPartialFH.ft_dh_df_Re(freq, R/A0, φ1, f1, τ1)
+                elseif variable == "tau1"
+                    return FourierTransformsPartialFH.ft_dh_dtau_Re(freq, R/A0, φ1, f1, τ1)
+                elseif variable == "R"
+                    return FourierTransformsPartialFH.ft_dh_dR_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                elseif variable == "dphi"
+                    return FourierTransformsPartialFH.ft_dh_ddphi1_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                elseif variable == "A0"
+                    return FourierTransformsPartialFH.ft_dh_dA0_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                elseif variable == "phi0"
+                    return FourierTransformsPartialFH.ft_dh_dphitau_Re(freq, A0, φ0, f0, τ0)
+                else 
+                    error("Fourir_d2modes first argument should be: \n 
+                        \"f0\", \"tau0\", \"f1\", \"tau1\", \"R\", \"dphi\", \"A0\", \"phi0\".")
+                end
+            elseif part == "imaginary"
+                if variable == "f0"
+                    return FourierTransformsPartialFH.ft_dh_df_Im(freq, A0, φ0, f0, τ0)
+                elseif variable == "tau0"
+                    return FourierTransformsPartialFH.ft_dh_dtau_Im(freq, A0, φ0, f0, τ0)
+                elseif variable == "f1"
+                    return FourierTransformsPartialFH.ft_dh_df_Im(freq, R/A0, φ1, f1, τ1)
+                elseif variable == "tau1"
+                    return FourierTransformsPartialFH.ft_dh_dtau_Im(freq, R/A0, φ1, f1, τ1)
+                elseif variable == "R"
+                    return FourierTransformsPartialFH.ft_dh_dR_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                elseif variable == "dphi"
+                    return FourierTransformsPartialFH.ft_dh_ddphi1_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                elseif variable == "A0"
+                    return FourierTransformsPartialFH.ft_dh_dA0_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                elseif variable == "phi0"
+                    return FourierTransformsPartialFH.ft_dh_dphitau_Im(freq, A0, φ0, f0, τ0)
+                else 
+                    error("Fourir_d2modes first argument should be: \n 
+                        \"f0\", \"tau0\", \"f1\", \"tau1\", \"R\", \"dphi\", \"A0\", \"phi0\".")
+                end
+            else 
+                error("Fourir_d2modes second argument should be \"real\" or \"imaginary\".")
+            end
+        elseif decay == "Q"
+            # quality factor Q = π*f*tau
+            if part == "real"
+                if variable == "f0"
+                    return FourierTransformsPartialFH.ft_dh_dfQ_Re(freq, A0, φ0, f0, pi*f0*τ0)
+                elseif variable == "Q0"
+                    return FourierTransformsPartialFH.ft_dh_dQ_Re(freq, A0, φ0, f0, pi*f0*τ0)
+                elseif variable == "f1"
+                    return FourierTransformsPartialFH.ft_dh_dfQ_Re(freq, R/A0, φ1, f1, pi*f1*τ1)
+                elseif variable == "Q1"
+                    return FourierTransformsPartialFH.ft_dh_dQ_Re(freq, R/A0, φ1, f1, pi*f1*τ1)
+                elseif variable == "R"
+                    return FourierTransformsPartialFH.ft_dh_dR_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                elseif variable == "dphi"
+                    return FourierTransformsPartialFH.ft_dh_ddphi1_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                elseif variable == "A0"
+                    return FourierTransformsPartialFH.ft_dh_dA0_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                elseif variable == "phi0"
+                    return FourierTransformsPartialFH.ft_dh_dphitau_Re(freq, A0, φ0, f0, τ0)
+                else 
+                    error("Fourir_d2modes first argument should be: \n 
+                        \"f0\", \"tau0\", \"f1\", \"tau1\", \"R\", \"dphi\", \"A0\", \"phi0\".")
+                end
+            elseif part == "imaginary"
+                if variable == "f0"
+                    return FourierTransformsPartialFH.ft_dh_dfQ_Im(freq, A0, φ0, f0, pi*f0*τ0)
+                elseif variable == "Q0"
+                    return FourierTransformsPartialFH.ft_dh_dQ_Im(freq, A0, φ0, f0, pi*f0*τ0)
+                elseif variable == "f1"
+                    return FourierTransformsPartialFH.ft_dh_dfQ_Im(freq, R/A0, φ1, f1, pi*f1*τ1)
+                elseif variable == "Q1"
+                    return FourierTransformsPartialFH.ft_dh_dQ_Im(freq, R/A0, φ1, f1, pi*f1*τ1)
+                elseif variable == "R"
+                    return FourierTransformsPartialFH.ft_dh_dR_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                elseif variable == "dphi"
+                    return FourierTransformsPartialFH.ft_dh_ddphi1_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                elseif variable == "A0"
+                    return FourierTransformsPartialFH.ft_dh_dA0_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                elseif variable == "phi0"
+                    return FourierTransformsPartialFH.ft_dh_dphitau_Im(freq, A0, φ0, f0, τ0)
+                else 
+                    error("Fourir_d2modes first argument should be: \n 
+                        \"f0\", \"tau0\", \"f1\", \"tau1\", \"R\", \"dphi\", \"A0\", \"phi0\".")
+                end
+            else 
+                error("Fourir_d2modes second argument should be \"real\" or \"imaginary\".")
+            end
+        else 
+            error("Fourir_d2modes last argument should be \"tau\" or \"Q\".")
+        end
+    end
+
+    export Fourier_1mode, PowerSpectrum_2modes, Fourier_2QNMs, Fourier_d2modes, Fourier_d2modes_FH
 
 end
 module Quantities
@@ -385,9 +744,10 @@ module Quantities
     end
 
 
-    function SNR(noise, ft_Re, ft_Im, F_Re, F_Im)
+    function SNR_QNM(noise, ft_Re, ft_Im, F_Re, F_Im)
         ## Compute signal-to-noise-ratio 
-        return sqrt(abs(trapezio(4*(F_Re.*ft_Re + F_Im.*ft_Im).^2 ./ noise["psd"].^2, noise["freq"])))
+        SNR = sqrt(trapezio(4*abs.(F_Re.*ft_Re + F_Im.*ft_Im).^2 ./ noise["psd"].^2, noise["freq"]))
+        return SNR
     end
 
     using QuadGK
@@ -422,6 +782,6 @@ module Quantities
         return D_L
     end
 
-    export trapezio, inner_product, SNR, luminosity_distance
+    export trapezio, inner_product, SNR_QNM, luminosity_distance
 end
 
