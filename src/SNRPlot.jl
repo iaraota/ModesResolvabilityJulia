@@ -46,7 +46,7 @@ function AllModesData()
 	ModesData = Dict()
 
 	for k_mode in modes
-		ModesData[k_mode] = ImportData("z_SNR_e345_FH_approx", k_mode)
+		ModesData[k_mode] = ImportData("z_SNR_e15_FH", k_mode)
 		#ModesData = ImportData("z_SNR_e345_FH", k_mode)
 	end				
 
@@ -103,7 +103,7 @@ function PlotSNRRedshift(X,Y,Z)
 	ax1.set_xscale("log")
 	#tcf1 = ax1.scatter(X,Y, c= Z, cmap="RdBu_r", norm = mpl.colors.LogNorm(vmin = 1, vmax = 3e3), marker = ",", s = 2, rasterized=true)		
 	#tcf1 = ax1.scatter(X,Y, c= Z, cmap="tab20c", norm = mpl.colors.LogNorm(vmin = 1, vmax = 3e3), marker = ",", s = 2, rasterized=true)		
-	tcf1 = ax1.scatter(X,Y, c = Z, cmap="RdBu_r", norm = mpl.colors.LogNorm(vmin = 1e-1, vmax = 3e3), marker = ",", s = 40, rasterized=true)		
+	tcf1 = ax1.scatter(X,Y, c = Z, cmap="tab20c", norm = mpl.colors.LogNorm(vmin = 1e-1, vmax = 3e3), marker = ",", s = 40, rasterized=true)		
 	ax1.set_yscale("log")
 	fig.subplots_adjust(right=0.8)
 	cbar_ax = fig.add_axes([0.83, 0.15, 0.02, 0.7])
@@ -112,8 +112,8 @@ function PlotSNRRedshift(X,Y,Z)
 	#ax1.set_ylim(0,0.5)
 
 	#fig.suptitle(k_mode*" - "*k_num*" par", fontsize = font_size)
-	fig.suptitle("(2,2,0)- q = 10 - FH", fontsize = font_size)
-	savefig("figs/q10_220_z_SNR_LIGO.pdf")	
+	fig.suptitle("(2,2,0) + (2,2,1) - q = 10 - FH", fontsize = font_size)
+	savefig("figs/FH_q10_220221_z_SNR_LIGO.pdf")	
 
 end
 

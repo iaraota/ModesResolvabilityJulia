@@ -88,7 +88,6 @@ function RunAllSXSFoldersLinear(masses, detector, F_Re, F_Im, N_avg, label, conv
                         end
                     end
                 end
-            
             end
         end
     end
