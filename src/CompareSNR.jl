@@ -1,4 +1,4 @@
-using DelimitedFiles, Distributed, HDF5, Random, Distributions, ProgressMeter, PyPlot, FFTW, DSP
+using DelimitedFiles, Distributed, HDF5, Random, Distributions, ProgressMeter, PyPlot, FFTW, DSP, PyCall
 include("AllFunctions.jl")
 include("Constants.jl")
 mpl = pyimport("matplotlib")
@@ -388,7 +388,7 @@ function FourierWindow(M_f, redshift)
 
 end
 
-function FTPlots(M_f, redshift)
+function FTPlots(M_f, redshift,f)
     mass_f = 0.952032939704
     ωr_220 = 0.55578866 
     ωi_220 = 0.08517178
@@ -401,8 +401,8 @@ function FTPlots(M_f, redshift)
     A_221 = 0.66*A_220
     masses = exp10.(range(4, stop = 9, length = 50))
 
-    f = exp10.(range(-5, stop = 0, length = Int(1e4)))
-    Sh = ShNSA.(f)
+    #f = exp10.(range(-5, stop = 0, length = Int(1e4)))
+    #Sh = ShNSA.(f)
 
     M_final = (1+redshift)*M_f*PhysConstants.tSun
     M_total = M_final / mass_f
@@ -431,15 +431,17 @@ function FTPlots(M_f, redshift)
     FT_QNM_re_221 = norm_221*(ft_psi.(f, freq_221,tau_221) .+ ft_psi.(f, -freq_221,tau_221))./2
     FT_QNM_im_221 = norm_221*(ft_psi.(f, freq_221,tau_221) .- ft_psi.(f, -freq_221,tau_221))./2im
     
-    loglog(f, abs.(FT_QNM_re_220), label = "EF - (2,2,0)")
-    loglog(f, abs.(FT_QNM_re_221), label = "EF - (2,2,1)")
+    #loglog(f, abs.(FT_QNM_re_220), label = "EF, M = "*string(M_f))
+   # loglog(f, abs.(FT_QNM_re_221), label = "EF - (2,2,1)")
     
-    loglog(f, abs.(FT_berti_re_220), label = "FH - (2,2,0)")
-    loglog(f, abs.(FT_berti_re_221), label = "FH - (2,2,1)")
+    #loglog(f, abs.(FT_berti_re_220), label = "FH, M = "*string(M_f))
+   # loglog(f, abs.(FT_berti_re_221), label = "FH - (2,2,1)")
 
-    loglog(f, abs.(FT_QNM_re_220 + FT_QNM_re_221), label = "EF - (2,2,0) + (2,2,1)")
-    loglog(f, abs.(FT_berti_re_220 + FT_berti_re_221), label = "FH - (2,2,0) + (2,2,1)")
+    #loglog(f, abs.(FT_QNM_re_220 + FT_QNM_re_221), label = "EF - (2,2,0) + (2,2,1)")
+    #loglog(f, abs.(FT_berti_re_220 + FT_berti_re_221), label = "FH - (2,2,0) + (2,2,1)")
 
+    loglog(f, 2 .*f.*abs.(FT_berti_re_220), label = "FH, M = "*string(M_f))
+    loglog(f, 2 .*f.*abs.(FT_QNM_re_220), label = "EF, M = "*string(M_f))
     legend()
 
 end
