@@ -1,4 +1,5 @@
 #= The functions depend on the following modules (add them in the main)
+using LinearAlgebra
 include("AllFunctions.jl")
 include("Constants.jl")
 using .FrequencyTransforms, .PhysConstants, .Quantities
@@ -65,10 +66,15 @@ function RayleighCriterion(M_f, mass_f, F_Re, F_Im, num_par, mode_1, mode_2, noi
         	end
         end
     end
+
 	Correlation = Dict()
     
     for k in keys(Fisher)
-    	Correlation[k] = inv(Fisher[k])
+        if det(Fisher[k]) ≈ 0
+            Correlation[k] = fill(1e30, (num_par, num_par))
+        else   
+        Correlation[k] = inv(Fisher[k])
+        end
     end
 
 	sigma = Dict()
