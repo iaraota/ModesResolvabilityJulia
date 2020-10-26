@@ -6,7 +6,7 @@ using .FrequencyTransforms, .PhysConstants, .Quantities
 import Base.Threads.@spawn
 
 function RunAllSXSFoldersLinearAllModes(masses, detector, F_Re, F_Im, label, simulation_folder = "SXS", convention = "FH")
-	noise = ImportDetectorStrain(detector)[1]
+	noise = ImportDetectorStrain(detector, false)
 	folders = readdir("../q_change/")
     for simu_folder_name in folders
         if occursin(simulation_folder, simu_folder_name)
@@ -99,7 +99,7 @@ end
 
 
 function RunAllSXSFoldersLinearChooseModes(masses, detector, F_Re, F_Im, label, mode_1, mode_2, simulation_folder = "SXS", convention = "FH")
-	noise = ImportDetectorStrain(detector)[1]
+	noise = ImportDetectorStrain(detector, false)
 	folders = readdir("../q_change/")
     for simu_folder_name in folders
         if occursin(simulation_folder, simu_folder_name)

@@ -310,6 +310,43 @@ module FourierTransformsPartialFH
 end
 
 module FrequencyTransforms
+
+    function QNM_reflec(t, A, ϕ, f, τ)
+        return A*exp(-abs(t)/τ)*exp(1im*(2π*f*t + ϕ))
+    end
+
+    using FFTW, DSP
+    
+    function FFTReflectWindow(A, ϕ, f, τ, τ_220, strain_unit, time_unit, α = 1)
+        # Compute discrete fourier transform of a QNM
+        # Uses FFT, reflects the QNM and uses Tukey window
+        # choose time interval for the QNM signal
+        ## maximun time = 5*τ_220, amplitude is less than 0.1% the initial amplitude
+        N = 2^14 - 1 
+        t_max = 5*τ_220
+        dt = 2*t_max/N
+        t_all = -t_max:dt:t_max
+
+        # compute QNM numerical signal
+        ## real part
+        signal_re = strain_unit*real.(QNM_reflec.(t_all, A, ϕ, f, τ)/2)
+        signal_re = strain_unit*A*exp.(-abs.(t_all)/τ).*cos.(2π*f*t_all .+ ϕ)/2
+        ## imaginary part
+        signal_im = strain_unit*imag.(QNM_reflec.(t_all, A, ϕ, f, τ)/2)
+
+        # Compute FFT
+        ## FFT frequencies
+        fft_freqs = FFTW.fftfreq(length(signal_re), 1.0/dt) |> fftshift
+        ## tukey window
+        tukey_window = DSP.Windows.tukey(length(signal_re), α)
+        ## FFT of real part
+        fft_re = dt*fft(tukey_window.*(signal_re)) |> fftshift
+        ## FFT of imaginary part
+        fft_im = dt*fft(tukey_window.*(signal_im)) |> fftshift
+
+        return fft_re, fft_im, fft_freqs
+    end
+
     function Fourier_1mode(part, f, A, φ, ωr, ωi, convention = "FH")
         ## compute the fourier transform of a single QNM
         ## fourier_QNM = \int_0^inf QNM
@@ -356,10 +393,25 @@ module FrequencyTransforms
             ft_Im[mode_2] = time_unit*strain_unit*abs.(Fourier_1mode.("imaginary", freq.*time_unit, amplitudes[mode_2], phases[mode_2], omega[mode_2][1], omega[mode_2][2], convention))
             ft_Im[mode_1*" + "*mode_2] = abs.(Fourier_1mode.("imaginary", freq.*time_unit, amplitudes[mode_1], phases[mode_1], omega[mode_1][1], omega[mode_1][2], convention) +
             Fourier_1mode.("imaginary", freq.*time_unit, amplitudes[mode_2], phases[mode_2], omega[mode_2][1], omega[mode_2][2], convention))*time_unit*strain_unit    
+            
+            return ft_Re, ft_Im
+        elseif convention == "DFT"
+            ft_freqs = Dict()
+            for mode in [mode_1, mode_2]
+                ft_Re[mode], ft_Im[mode], ft_freqs[mode] = FFTReflectWindow(amplitudes[mode], phases[mode], omega[mode][1]/2π/time_unit, time_unit/omega[mode][2], time_unit/omega["(2,2,0)"][2], strain_unit, time_unit, 1)
+            end
+            ft_Re[mode_1*" + "*mode_2] = abs.(ft_Re[mode_1] .+ ft_Re[mode_2])
+            ft_Im[mode_1*" + "*mode_2] = abs.(ft_Im[mode_1] .+ ft_Im[mode_2])
+            ft_freqs[mode_1*" + "*mode_2] = ft_freqs[mode_1]
+
+            for mode in [mode_1, mode_2]
+                ft_Re[mode], ft_Im[mode] = abs.(ft_Re[mode]), abs.(ft_Im[mode])
+            end
+            return ft_Re, ft_Im, ft_freqs
         else
-            error("convention argument must be set to \"FH\" or \"EF\".")
+            error("convention argument must be set to \"FH\", \"EF\" or \"DFT\".")
         end
-        return ft_Re, ft_Im
+        
     end
 
     # fourier transform of the partial derivative of the QNM 
@@ -721,9 +773,9 @@ module Quantities
     end
 
 
-    function SNR_QNM(noise, ft_Re, ft_Im, F_Re, F_Im)
+    function SNR_QNM(freq, noise, ft_Re, ft_Im, F_Re, F_Im)
         ## Compute signal-to-noise-ratio 
-        SNR = sqrt(trapezio(4*abs.(F_Re.*ft_Re + F_Im.*ft_Im).^2 ./ noise["psd"].^2, noise["freq"]))
+        SNR = sqrt(trapezio(4*abs.(F_Re.*ft_Re + F_Im.*ft_Im).^2 ./ noise.^2, freq))
         return SNR
     end
 
@@ -760,7 +812,7 @@ module Quantities
     end
 
     using DelimitedFiles, Dierckx
-    function ImportDetectorStrain(detector)
+    function ImportDetectorStrain(detector, interpolation = false)
         # TODO: Add Einstein Telescope curve 
         # import PSD noise
         ## LISA Strain
@@ -802,10 +854,13 @@ module Quantities
         else
             return error("Wrong detector option! Choose \"LIGO\", \"LISA\", \"CE\" = \"CE2silicon\", \"CE2silica\" or \"ET\"")
         end
-    
-        # interpolate noise curve (Dierckx library)
-        itp = Spline1D(noise["freq"], noise["psd"])
-        return noise, itp
+        if interpolation == false
+            return noise
+        else
+            # interpolate noise curve (Dierckx library)
+            itp = Spline1D(noise["freq"], noise["psd"], k = 5, bc = "zero")
+            return itp
+        end
     end
 
     export trapezio, inner_product, SNR_QNM, luminosity_distance, ImportDetectorStrain
