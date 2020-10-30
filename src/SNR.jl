@@ -1,56 +1,9 @@
-using DelimitedFiles, Distributed, HDF5, Random, Distributions, ProgressMeter, Dierckx
+using DelimitedFiles, Distributed, HDF5, Random, Distributions, ProgressMeter, Dierckx, PyPlot
 include("AllFunctions.jl")
 include("Constants.jl")
 using .FrequencyTransforms, .PhysConstants, .Quantities
 
 import Base.Threads.@spawn
-function ImportDetectorStrain(detector)
-    # TODO: Add Einstein Telescope curve 
-    # import PSD noise
-    ## LISA Strain
-    LISA_strain = readdlm("../detectors/LISA_Strain_Sensitivity_range.txt", comments=true, comment_char='#')
-    ## LIGO Design sensitivity
-    aLIGO_strain = readdlm("../detectors/aLIGODesign.txt", comments=true, comment_char='#')
-    ## Cosmic Explorer sensitivity
-        ### silica
-    CE2silica = readdlm("../detectors/CE/CE2silica.txt", comments=true, comment_char='#')
-        ### silicon
-    CE2silicon = readdlm("../detectors/CE/CE2silicon.txt", comments=true, comment_char='#')
-    ## Einstein Telescope
-    ET = readdlm("../detectors/ET/ETDSensitivityCurve.txt", comments=true, comment_char='#')
-    
-    # choose noise
-    noise = Dict()
-    if detector == "LIGO"
-        noise["freq"], noise["psd"] = aLIGO_strain[:,1], aLIGO_strain[:,2]
-        noise["name"] = "Design sensitivity"
-        # limit maximum frequency
-        noise["psd"] = noise["psd"][(noise["freq"] .< 5000)]
-        noise["freq"] = noise["freq"][(noise["freq"] .< 5000)]
-
-    elseif detector == "LISA"
-        noise["freq"], noise["psd"] = LISA_strain[:,1], LISA_strain[:,2]
-        noise["name"] = "LISA sensitivity"
-
-    elseif detector == "ET"
-        noise["freq"], noise["psd"] = ET[:,1], ET[:,4]
-        noise["name"] = "ET_D sum sensitivity"
-
-    elseif detector == "CE" || detector == "CE2silicon"
-        noise["freq"], noise["psd"] = CE2silicon[:,1], CE2silicon[:,2]
-        noise["name"] = "CE silicon sensitivity"
-
-    elseif detector == "CE2silica"
-        noise["freq"], noise["psd"] = CE2silica[:,1], CE2silica[:,2]
-        noise["name"] = "CE silica sensitivity"
-    else
-        return error("Wrong detector option! Choose \"LIGO\", \"LISA\", \"CE\" = \"CE2silicon\", \"CE2silica\" or \"ET\"")
-    end
-
-    # interpolate noise curve (Dierckx library)
-    itp = Spline1D(noise["freq"], noise["psd"])
-    return noise, itp
-end
 
 function ComputeSNR1mode(M_f, mass_f, F_Re, F_Im, mode_1, noise, amplitudes, phases, omega, redshift, convention = "FH")
     # Source parameters
@@ -89,7 +42,12 @@ function ComputeSNRApprox1(M_f, mass_f, mode, noise, amplitudes, omega, redshift
     tau[mode] =  time_unit/omega[mode][2]
     Q_factor[mode] = π*freq[mode]*tau[mode]
 
-    SNR = strain_unit^2*Q_factor[mode]*amplitudes[mode]^2/(20*π^2*freq[mode]*noise(freq[mode])^2)
+    noise_f = noise(freq[mode])
+    if noise_f == 0
+        noise_f = 1e3
+    end
+
+    SNR = strain_unit^2*Q_factor[mode]*amplitudes[mode]^2/(20*π^2*freq[mode]*noise_f^2)
     return SNR         
 end
 
@@ -110,11 +68,19 @@ function ComputeSNRApprox2(M_f, mass_f, mode_1, mode_2, noise, amplitudes, phase
         tau[key] =  time_unit/value[2]
         Q_factor[key] = π*freq[key]*tau[key]
     end
+    noise_1 = noise(freq[mode_1])
+    noise_2 = noise(freq[mode_2])
+    if noise_1 == 0
+        noise_1 = 1e3
+    end
+    if noise_2 == 0
+        noise_2 = 1e3
+    end
     
     SNR_1 = (strain_unit*amplitudes[mode_1])^2*Q_factor[mode_1]^3/
-            (5*π^2*freq[mode_1]*(1 + 4*Q_factor[mode_1]^2)*noise(freq[mode_1])^2)
+            (5*π^2*freq[mode_1]*(1 + 4*Q_factor[mode_1]^2)*noise_1^2)
     SNR_2 = (strain_unit*amplitudes[mode_2])^2*Q_factor[mode_2]*(sin(phases[mode_2]- phases[mode_1])^2 + 2*Q_factor[mode_2]^2)/
-            (10*π^2*freq[mode_2]*(1 + 4*Q_factor[mode_2]^2)*noise(freq[mode_2])^2)
+            (10*π^2*freq[mode_2]*(1 + 4*Q_factor[mode_2]^2)*noise_2^2)
     if mode_1[2] == mode_2[2] && mode_1[4] == mode_2[4] 
         SNR = sqrt(SNR_1 + SNR_2)
     else 
@@ -122,7 +88,7 @@ function ComputeSNRApprox2(M_f, mass_f, mode_1, mode_2, noise, amplitudes, phase
             Q_factor[mode_2]*(freq[mode_1]^2 + 4*(freq[mode_1] + freq[mode_2])^2*Q_factor[mode_1]^2)
         Λm = freq[mode_2]^2*Q_factor[mode_1]^2 + 2*freq[mode_1]*freq[mode_2]*Q_factor[mode1]*Q_factor[mode_2] +
             Q_factor[mode_2]*(freq[mode_1]^2 + 4*(freq[mode_1] - freq[mode_2])^2*Q_factor[mode_1]^2)
-        extra = strain_unit^2*amplitudes[mode_1]*amplitudes[mode_2]/(5*π*noise(freq[mode_1])^2)*
+        extra = strain_unit^2*amplitudes[mode_1]*amplitudes[mode_2]/(5*π*noise_1^2)*
                 (16*freq[mode_1]*freq[mode_2]*Q_factor[mode_1]^3*Q_factor[mode_2]^3*
                 (freq[mode_1]*Q_factor[mode2] + freq[mode_2]*Q_factor[mode_1])*cos(phases[mode_2]- phases[mode_1]))/Λp/Λm
         SNR = sqrt(SNR_1 + SNR_2 + extra)
@@ -131,7 +97,7 @@ function ComputeSNRApprox2(M_f, mass_f, mode_1, mode_2, noise, amplitudes, phase
 end
 
 
-function ComputeSNR(M_f, mass_f, F_Re, F_Im, mode_1, mode_2, noise, amplitudes, phases, omega, redshift, convention = "FH")
+function ComputeSNR(M_f, mass_f, F_Re, F_Im, mode_1, mode_2, amplitudes, phases, omega, redshift, detector, convention = "FH")
     # Source parameters
     M_final = (1+redshift)*M_f
     M_total = M_final / mass_f
@@ -142,19 +108,42 @@ function ComputeSNR(M_f, mass_f, F_Re, F_Im, mode_1, mode_2, noise, amplitudes, 
 
     SNR = Dict()
     
+    
     if convention == "FH" || convention == "EF"
+        noise = ImportDetectorStrain(detector, false)
         ft_Re, ft_Im =  Fourier_2QNMs(noise["freq"], amplitudes, phases, omega, mode_1, mode_2, time_unit, strain_unit, convention)
-        SNR[mode_1] = Quantities.SNR_QNM(noise, ft_Re[mode_1], ft_Im[mode_1], F_Re, F_Im)
-        SNR[mode_2] = Quantities.SNR_QNM(noise, ft_Re[mode_2], ft_Im[mode_2], F_Re, F_Im)
-        SNR[mode_1*" + "*mode_2]  = Quantities.SNR_QNM(noise, ft_Re[mode_1*" + "*mode_2], ft_Im[mode_1*" + "*mode_2], F_Re, F_Im)
+        SNR[mode_1] = Quantities.SNR_QNM(noise["freq"], noise["psd"], ft_Re[mode_1], ft_Im[mode_1], F_Re, F_Im)
+        SNR[mode_2] = Quantities.SNR_QNM(noise["freq"], noise["psd"], ft_Re[mode_2], ft_Im[mode_2], F_Re, F_Im)
+        SNR[mode_1*" + "*mode_2]  = Quantities.SNR_QNM(noise["freq"], noise["psd"], ft_Re[mode_1*" + "*mode_2], ft_Im[mode_1*" + "*mode_2], F_Re, F_Im)
+        #loglog(noise["freq"], noise["psd"])
+        #loglog(noise["freq"], abs.(ft_Re[mode_1]))
+    elseif convention == "DFT"
+        noise_itp = ImportDetectorStrain(detector, true)
+        ft_Re, ft_Im, ft_freq =  Fourier_2QNMs(0, amplitudes, phases, omega, mode_1, mode_2, time_unit, strain_unit, convention)
+        noise_values = noise_itp(ft_freq[mode_1])
+        for i in 1:length(noise_values)
+            if noise_values[i] == 0
+                noise_values[i] = 1e3
+            end
+        end
+        SNR[mode_1] = Quantities.SNR_QNM(ft_freq[mode_1], noise_values, ft_Re[mode_1], ft_Im[mode_1], F_Re, F_Im)
+        SNR[mode_2] = Quantities.SNR_QNM(ft_freq[mode_2], noise_values, ft_Re[mode_2], ft_Im[mode_2], F_Re, F_Im)
+        SNR[mode_1*" + "*mode_2]  = Quantities.SNR_QNM(ft_freq[mode_1], noise_values, ft_Re[mode_1*" + "*mode_2], ft_Im[mode_1*" + "*mode_2], F_Re, F_Im)
+        #loglog(ft_freq[mode_1], noise_values)
+        #loglog(ft_freq[mode_1], abs.(ft_Re[mode_1]), ls = "--")
+    elseif convention == "Approx"
+        noise_itp = ImportDetectorStrain(detector, true)
+        SNR[mode_1] = ComputeSNRApprox1(M_f, mass_f, mode_1, noise_itp, amplitudes, omega, redshift)
+        SNR[mode_2] = ComputeSNRApprox1(M_f, mass_f, mode_2, noise_itp, amplitudes, omega, redshift)
+        SNR[mode_1*" + "*mode_2]  = ComputeSNRApprox2(M_f, mass_f, mode_1, mode_2, noise_itp, amplitudes, phases, omega, redshift)
     else
-        error("convention argument must be set to \"FH\" or \"EF\".")
+        error("convention argument must be set to \"FH\", \"EF\" or \"DFT\".")
     end
     return SNR
 end
 
 function RunAllSXSFolders(masses, detector, F_Re, F_Im, N_avg, label, convention = "FH")
-	noise = ImportDetectorStrain(detector)[1]
+	noise = ImportDetectorStrain(detector, true)
 	folders = readdir("../q_change/")
     for simu_folder_name in folders
         if occursin("10.0", simu_folder_name)
@@ -233,8 +222,7 @@ function RunAllSXSFolders(masses, detector, F_Re, F_Im, N_avg, label, convention
     end
 end
 
-function RunAllSXSFolders1(masses, detector, F_Re, F_Im, N_avg, label, convention = "FH")
-	noise = ImportDetectorStrain(detector)[1]
+function RunAllSXSFolders1(masses, detector, F_Re, F_Im, label, convention = "FH")
 	folders = readdir("../q_change/")
     for simu_folder_name in folders
         if occursin("10.0", simu_folder_name)
@@ -261,8 +249,6 @@ function RunAllSXSFolders1(masses, detector, F_Re, F_Im, N_avg, label, conventio
             for (key, value) in amplitudes
                 amplitudes[key] = abs(amplitudes[key])
             end
-            amplitudes["(3,3,0)"] = amplitudes["(3,3,0)"]/N_avg
-            ratios["(3,3,0)"] = ratios["(3,3,0)"]/N_avg
             # final mass
             mass_f = 0.0
             open(simu_folder*"/import_data/metadata.txt") do file
@@ -279,10 +265,10 @@ function RunAllSXSFolders1(masses, detector, F_Re, F_Im, N_avg, label, conventio
             mode_1 = "(2,2,0)"
             modes = ["(2,2,1) I"]#, "(3,3,0)", "(4,4,0)", "(2,1,0)"]
             amplitudes["(2,2,1) I"] = 0
-            N = Int(2e2)
-            z_min, z_max = 1e-3, 20
-            z_range = exp10.(range(-2, stop = 1, length = N))
-            file_path = "data/z_SNR_"*string(label)*".h5"
+            N = Int(2)
+            z_min, z_max = 1e-10, 20
+            z_range = exp10.(range(log10(z_min), stop = log10(z_max), length = N))
+            file_path = "data/SNRFinalMassRedshift_"*detector*"_"*string(label)*"_"*convention*".h5"
 			if isfile(file_path)
 				rm(file_path)
 			end
@@ -299,7 +285,7 @@ function RunAllSXSFolders1(masses, detector, F_Re, F_Im, N_avg, label, conventio
                     save_dict_2[save_dir_2] = zeros(N, 2)
                     Base.Threads.@threads for z_rand in z_range
                         i = findall(x -> x == z_rand, z_range)[1]
-                        SNR = ComputeSNR(M_f, mass_f, F_Re, F_Im, mode_1, mode_2, noise, amplitudes, phases, omega, z_rand, convention)
+                        SNR = ComputeSNR(M_f, mass_f, F_Re, F_Im, mode_1, mode_2, amplitudes, phases, omega, z_rand, detector, convention)
                         SNR_1 = SNR[mode_1]
                         SNR_2 = SNR[mode_1*" + "*mode_2] 
                         save_results_1 =  [z_rand, SNR_1]

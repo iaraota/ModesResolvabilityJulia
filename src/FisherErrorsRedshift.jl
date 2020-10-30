@@ -52,11 +52,11 @@ function RunAllSXSFoldersLinearAllModes(masses, detector, F_Re, F_Im, label, sim
             nums = [4, 6]
             z_min = 1e-2
             if detector == "LIGO"
-                N = Int(2e2)
+                N = Int(8e2)
                 z_max = 5
             else
-                N = Int(1e3)
-                z_max = 20
+                N = Int(1e4)
+                z_max = 100
             end
             z_range = exp10.(range(log10(z_min), stop = log10(z_max), length = N))
             file_path = "data/FisherErrorsRedshift_"*simu_folder_name*"_"*detector*"_"*string(convention)*"_"*string(label)*".h5"

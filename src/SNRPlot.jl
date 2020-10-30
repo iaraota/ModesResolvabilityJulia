@@ -46,7 +46,7 @@ function AllModesData()
 	ModesData = Dict()
 
 	for k_mode in modes
-		ModesData[k_mode] = ImportData("z_SNR_e15_FH", k_mode)
+		ModesData[k_mode] = ImportData("z_SNR_LIGO_e1-e5_FH", k_mode)
 		#ModesData = ImportData("z_SNR_e345_FH", k_mode)
 	end				
 
@@ -112,8 +112,8 @@ function PlotSNRRedshift(X,Y,Z)
 	#ax1.set_ylim(0,0.5)
 
 	#fig.suptitle(k_mode*" - "*k_num*" par", fontsize = font_size)
-	fig.suptitle("(2,2,0) + (2,2,1) - q = 10 - FH", fontsize = font_size)
-	savefig("figs/FH_q10_220221_z_SNR_LIGO.pdf")	
+	fig.suptitle("(2,2,0) - q = 10 - FH", fontsize = font_size)
+	savefig("figs/FH_q10_220_z_SNR_ET_new.pdf")	
 
 end
 
@@ -134,4 +134,107 @@ function luminosity_distance(redshift)
 	D_C = D_H*quadgk(x -> 1/E(x), 0, redshift, rtol=1e-18)[1]
 	D_L = (1 + redshift)*D_C
 	return D_L
+end
+
+
+function meshgrid(x, y)
+    X = [i for i in x, j in 1:length(y)]
+    Y = [j for i in 1:length(x), j in y]
+    return X, Y
+end
+
+
+function ImportDataGrid(file_name, k_mode,  min, max)	
+    files = Dict()
+
+    for i in min:max
+		files["e"*string(i)] = h5open("data/"*file_name*".h5") do file
+	        read(file, k_mode) 
+	    end
+	end
+
+	data = reduce(merge, collect(values(files)))
+	
+    M_f = zeros(0)
+    
+	for mass in keys(data)
+		append!(M_f, parse(Float64,mass))
+	end
+	M_f = sort(M_f)
+
+	redshift = data[string(M_f[1])][:,1]
+
+	M, N = length(M_f), length(redshift)
+	
+	SNR = zeros(M, N)
+
+	for i in 1:M
+		for j in 1:N
+			SNR[i, j] = data[string(M_f[i])][j, 2]
+		end
+	end
+
+	X, Y = meshgrid(M_f, redshift)
+
+	return X, Y, SNR
+
+end
+
+function ImportModesGrid(file_name, min, max)	
+	modes = ["(2,2,0)", "(2,2,0)+(2,2,1) I"]
+	#modes = ["(2,2,0)+(2,2,1) I", "(2,2,0)+(3,3,0)", "(2,2,0)+(4,4,0)", "(2,2,0)+(2,1,0)"]
+	#"(2,2,1) I+(3,3,0)", "(2,2,1) I+(4,4,0)", "(2,2,1) I+(2,1,0)",
+	#"(3,3,0)+(2,1,0)", "(3,3,0)+(4,4,0)", "(4,4,0)+(2,1,0)", "(2,2,0)+(2,2,1) II", 
+	#"(2,2,1) II+(3,3,0)", "(2,2,1) II+(4,4,0)", "(2,2,1) II+(2,1,0)"]
+	
+	#modes = ["(2,2,1) I+(4,4,0)", "(2,2,1) I+(3,3,0)", "(2,2,0)+(2,2,1) I", "(2,2,1) I+(2,1,0)"]
+
+	ModesData = Dict()
+	for k_mode in modes
+		ModesData[k_mode] = ImportDataGrid(file_name, k_mode, min, max)	
+	end
+	return ModesData	
+end
+
+function PlotHorizonGrid(DataModes,label)
+	rcParams = PyPlot.PyDict(PyPlot.matplotlib."rcParams")
+	rcParams["mathtext.fontset"] = "cm"
+	rcParams["font.family"] = "STIXGeneral"
+	rcParams["figure.figsize"] = [15, 8]  # plot image size
+
+	font_size = 28
+	rcParams["xtick.labelsize"]= font_size
+	rcParams["ytick.labelsize"]= font_size
+
+	close("all")
+	fig, ax1 = subplots()
+	#ax1.set_ylim(1e-1,20 + 1e-20)
+	#ax1.set_yticks([0,5,10,15,20])
+	#ax1.set_yticklabels([0,5,10,15,20])
+	ax1.set_yscale("log")
+	ax1.set_xscale("log")
+	#ax2 = ax1.twinx()
+	#mn, mx = ax1.get_ylim()
+	#ax2.set_ylim(luminosity_distance(mn)*1e-3, luminosity_distance(mx)*1e-3)
+	#ax2.set_ylabel("Luminosity distance [Gpc]", fontsize = font_size)
+
+	ax1.set_ylabel("redshift", fontsize = font_size)
+	ax1.set_xlabel(L"final mass $[M_\odot]$", fontsize = font_size)
+
+	#ax1.set_xlim(4+1e-20,9 + 1e-20)
+	#ax1.set_xticks([4,5,6,7,8,9])
+	#ax1.set_xticklabels([L"$10^4$", L"$10^5$", L"$10^6$", L"$10^7$", L"$10^8$", L"$10^9$"])
+	ax1.tick_params(axis="both", pad=10)
+
+	modes = ["(2,2,0)"]#, "(2,2,0)+(2,2,1) I"]
+	ax1.set_ylim(1e-2, 1e0)
+	for k_mode in modes
+		v = DataModes[k_mode]
+		#cs = ax1.contourf(v[1], v[2], v[3], cmap = "inferno", norm = mpl.colors.LogNorm(vmin = 1e-1, vmax = 3e3))
+		cs = ax1.scatter(v[1], v[2], c = v[3],cmap="tab20c", norm = mpl.colors.LogNorm(vmin = 1e-1, vmax = 1e3), marker = ",", s = 40, rasterized=true)		
+		fig.colorbar(cs)
+	end
+	title(label*", q = 10", fontsize = font_size)
+	tight_layout()
+	savefig("figs/"*label*"_SNR.pdf")	
 end

@@ -322,11 +322,11 @@ module FrequencyTransforms
         # Uses FFT, reflects the QNM and uses Tukey window
         # choose time interval for the QNM signal
         ## maximun time = 5*τ_220, amplitude is less than 0.1% the initial amplitude
+        α = 0
         N = 2^14 - 1 
         t_max = 5*τ_220
         dt = 2*t_max/N
         t_all = -t_max:dt:t_max
-
         # compute QNM numerical signal
         ## real part
         signal_re = strain_unit*real.(QNM_reflec.(t_all, A, ϕ, f, τ)/2)
