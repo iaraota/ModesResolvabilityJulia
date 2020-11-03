@@ -4,11 +4,12 @@ include("AllFunctions.jl")
 include("Constants.jl")
 using .FrequencyTransforms, .PhysConstants, .Quantities
 =#
-function FisherMatrixElements(strain_unit, noise_freq, amplitudes, phases, ratios, dphases, freq, tau, mode_1, mode_2, convention = "FH")
-	value = noise_freq, amplitudes[mode_1] * strain_unit, phases[mode_1], freq[mode_1], tau[mode_1], amplitudes[mode_2] * strain_unit, phases[mode_2], freq[mode_2], tau[mode_2]
+function FisherMatrixElements(strain_unit, noise_freq, amplitudes, phases, freq, tau, mode_1, mode_2, convention = "FH")
+	value = noise_freq, amplitudes[mode_1] * strain_unit, phases[mode_1], freq[mode_1], tau[mode_1], amplitudes[mode_2] /amplitudes[mode_1], phases[mode_2], freq[mode_2], tau[mode_2]
 	var_tau = "f0", "tau0", "f1", "tau1", "R", "dphi", "A0", "phi0"
 	var_Q = "f0", "Q0", "f1", "Q1", "R", "dphi", "A0", "phi0"
-	elements = Dict("tau"=>Dict("real"=> Dict(), "imaginary"=> Dict()), "Q" => Dict("real"=> Dict(), "imaginary"=> Dict()))
+    elements = Dict("tau"=>Dict("real"=> Dict(), "imaginary"=> Dict()), "Q" => Dict("real"=> Dict(), "imaginary"=> Dict()))
+    
     if convention == "FH" || convention == "EF"
         for part in ["real", "imaginary"]
             for v in var_tau
@@ -24,7 +25,7 @@ function FisherMatrixElements(strain_unit, noise_freq, amplitudes, phases, ratio
 	return elements, var_tau, var_Q
 end
 
-function RayleighCriterion(M_f, mass_f, F_Re, F_Im, num_par, mode_1, mode_2, noise, amplitudes, phases, ratios, dphases, omega, redshift, convention = "FH")
+function RayleighCriterion(M_f, mass_f, F_Re, F_Im, num_par, mode_1, mode_2, noise, amplitudes, phases, omega, redshift, convention = "FH")
     # Computes parameters errors using Fisher Matrix 
     ## mode_1 is the dominant QNM and mode_2 is the next ratios = A_mode2/A_mode1 and dphases = phases_mode1 - phases_mode2
 
@@ -55,7 +56,7 @@ function RayleighCriterion(M_f, mass_f, F_Re, F_Im, num_par, mode_1, mode_2, noi
     delta_var["Q"] = abs(pi * freq[mode_1] * tau[mode_1] - pi * freq[mode_2] * tau[mode_2])
 
     var_ind = Dict()
-    elements, var_ind["tau"], var_ind["Q"] = FisherMatrixElements(strain_unit, noise["freq"], amplitudes, phases, ratios, dphases, freq, tau, mode_1, mode_2, convention)
+    elements, var_ind["tau"], var_ind["Q"] = FisherMatrixElements(strain_unit, noise["freq"], amplitudes, phases, freq, tau, mode_1, mode_2, convention)
     Fisher = Dict("tau"=>zeros(num_par, num_par), "Q"=> zeros(num_par, num_par))
     
     for i in 1:num_par

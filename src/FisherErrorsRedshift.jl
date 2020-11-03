@@ -52,10 +52,12 @@ function RunAllSXSFoldersLinearAllModes(masses, detector, F_Re, F_Im, label, sim
             nums = [4, 6]
             z_min = 1e-2
             if detector == "LIGO"
-                N = Int(8e2)
+                #N = Int(8e2)
+                N = Int(1e2)
                 z_max = 5
             else
-                N = Int(1e4)
+                #N = Int(1e4)
+                N = Int(1e2)
                 z_max = 100
             end
             z_range = exp10.(range(log10(z_min), stop = log10(z_max), length = N))
@@ -79,7 +81,7 @@ function RunAllSXSFoldersLinearAllModes(masses, detector, F_Re, F_Im, label, sim
                                 save_dict[save_dir] = zeros(N, 9)
                                 Base.Threads.@threads for z_rand in z_range
                                     i = findall(x -> x == z_rand, z_range)[1]
-                                    sigma, delta_var = RayleighCriterion(M_f, mass_f, F_Re, F_Im, num_par, mode_1, mode_2, noise, amplitudes, phases, ratios, dphases, omega, z_rand, convention)
+                                    sigma, delta_var = RayleighCriterion(M_f, mass_f, F_Re, F_Im, num_par, mode_1, mode_2, noise, amplitudes, phases, omega, z_rand, convention)
                                     save_results =  [z_rand, delta_var["f"], maximum(sigma["f_tau"]), delta_var["tau"], maximum(sigma["tau"]), delta_var["f"], maximum(sigma["f_Q"]), delta_var["Q"], maximum(sigma["Q"])]
                                     for j in 1:length(save_results)
                                         save_dict[save_dir][i,j] = save_results[j]
@@ -160,7 +162,7 @@ function RunAllSXSFoldersLinearChooseModes(masses, detector, F_Re, F_Im, label, 
                     save_dict[save_dir] = zeros(N, 9)
                     Base.Threads.@threads for z_rand in z_range
                         i = findall(x -> x == z_rand, z_range)[1]
-                        sigma, delta_var = RayleighCriterion(M_f, mass_f, F_Re, F_Im, num_par, mode_1, mode_2, noise, amplitudes, phases, ratios, dphases, omega, z_rand, convention)
+                        sigma, delta_var = RayleighCriterion(M_f, mass_f, F_Re, F_Im, num_par, mode_1, mode_2, noise, amplitudes, phases, omega, z_rand, convention)
                         save_results =  [z_rand, delta_var["f"], maximum(sigma["f_tau"]), delta_var["tau"], maximum(sigma["tau"]), delta_var["f"], maximum(sigma["f_Q"]), delta_var["Q"], maximum(sigma["Q"])]
                         for j in 1:length(save_results)
                             save_dict[save_dir][i,j] = save_results[j]

@@ -322,7 +322,7 @@ module FrequencyTransforms
         # Uses FFT, reflects the QNM and uses Tukey window
         # choose time interval for the QNM signal
         ## maximun time = 5*τ_220, amplitude is less than 0.1% the initial amplitude
-        α = 0
+        α = 1
         N = 2^14 - 1 
         t_max = 5*τ_220
         dt = 2*t_max/N
@@ -564,11 +564,11 @@ module FrequencyTransforms
                     elseif variable == "tau1"
                         return FourierTransformsPartialFH.ft_dh_dtau_Re(freq, R/A0, φ1, f1, τ1)
                     elseif variable == "R"
-                        return FourierTransformsPartialFH.ft_dh_dR_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                        return FourierTransformsPartialFH.ft_dh_dR_tau_Re(freq, A0, φ0, f0, τ0, R, φ0 - φ1, f1, τ1)
                     elseif variable == "dphi"
-                        return FourierTransformsPartialFH.ft_dh_ddphi1_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                        return FourierTransformsPartialFH.ft_dh_ddphi1_tau_Re(freq, A0, φ0, f0, τ0, R, φ0 - φ1, f1, τ1)
                     elseif variable == "A0"
-                        return FourierTransformsPartialFH.ft_dh_dA0_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                        return FourierTransformsPartialFH.ft_dh_dA0_tau_Re(freq, A0, φ0, f0, τ0, R, φ0 - φ1, f1, τ1)
                     elseif variable == "phi0"
                         return FourierTransformsPartialFH.ft_dh_dphitau_Re(freq, A0, φ0, f0, τ0)
                     else 
@@ -585,11 +585,11 @@ module FrequencyTransforms
                     elseif variable == "tau1"
                         return FourierTransformsPartialFH.ft_dh_dtau_Im(freq, R/A0, φ1, f1, τ1)
                     elseif variable == "R"
-                        return FourierTransformsPartialFH.ft_dh_dR_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                        return FourierTransformsPartialFH.ft_dh_dR_tau_Im(freq, A0, φ0, f0, τ0, R, φ0 - φ1, f1, τ1)
                     elseif variable == "dphi"
-                        return FourierTransformsPartialFH.ft_dh_ddphi1_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                        return FourierTransformsPartialFH.ft_dh_ddphi1_tau_Im(freq, A0, φ0, f0, τ0, R, φ0 - φ1, f1, τ1)
                     elseif variable == "A0"
-                        return FourierTransformsPartialFH.ft_dh_dA0_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                        return FourierTransformsPartialFH.ft_dh_dA0_tau_Im(freq, A0, φ0, f0, τ0, R, φ0 - φ1, f1, τ1)
                     elseif variable == "phi0"
                         return FourierTransformsPartialFH.ft_dh_dphitau_Im(freq, A0, φ0, f0, τ0)
                     else 
@@ -611,11 +611,11 @@ module FrequencyTransforms
                     elseif variable == "Q1"
                         return FourierTransformsPartialFH.ft_dh_dQ_Re(freq, R/A0, φ1, f1, pi*f1*τ1)
                     elseif variable == "R"
-                        return FourierTransformsPartialFH.ft_dh_dR_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                        return FourierTransformsPartialFH.ft_dh_dR_tau_Re(freq, A0, φ0, f0, τ0, R, φ0 - φ1, f1, τ1)
                     elseif variable == "dphi"
-                        return FourierTransformsPartialFH.ft_dh_ddphi1_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                        return FourierTransformsPartialFH.ft_dh_ddphi1_tau_Re(freq, A0, φ0, f0, τ0, R, φ0 - φ1, f1, τ1)
                     elseif variable == "A0"
-                        return FourierTransformsPartialFH.ft_dh_dA0_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                        return FourierTransformsPartialFH.ft_dh_dA0_tau_Re(freq, A0, φ0, f0, τ0, R, φ0 - φ1, f1, τ1)
                     elseif variable == "phi0"
                         return FourierTransformsPartialFH.ft_dh_dphitau_Re(freq, A0, φ0, f0, τ0)
                     else 
@@ -632,11 +632,11 @@ module FrequencyTransforms
                     elseif variable == "Q1"
                         return FourierTransformsPartialFH.ft_dh_dQ_Im(freq, R/A0, φ1, f1, pi*f1*τ1)
                     elseif variable == "R"
-                        return FourierTransformsPartialFH.ft_dh_dR_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                        return FourierTransformsPartialFH.ft_dh_dR_tau_Im(freq, A0, φ0, f0, τ0, R, φ0 - φ1, f1, τ1)
                     elseif variable == "dphi"
-                        return FourierTransformsPartialFH.ft_dh_ddphi1_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                        return FourierTransformsPartialFH.ft_dh_ddphi1_tau_Im(freq, A0, φ0, f0, τ0, R, φ0 - φ1, f1, τ1)
                     elseif variable == "A0"
-                        return FourierTransformsPartialFH.ft_dh_dA0_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                        return FourierTransformsPartialFH.ft_dh_dA0_tau_Im(freq, A0, φ0, f0, τ0, R, φ0 - φ1, f1, τ1)
                     elseif variable == "phi0"
                         return FourierTransformsPartialFH.ft_dh_dphitau_Im(freq, A0, φ0, f0, τ0)
                     else 
@@ -661,11 +661,11 @@ module FrequencyTransforms
                     elseif variable == "tau1"
                         return FourierTransformsPartial.ft_dh_dtau_Re(freq, R/A0, φ1, f1, τ1)
                     elseif variable == "R"
-                        return FourierTransformsPartial.ft_dh_dR_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                        return FourierTransformsPartial.ft_dh_dR_tau_Re(freq, A0, φ0, f0, τ0, R, φ0 - φ1, f1, τ1)
                     elseif variable == "dphi"
-                        return FourierTransformsPartial.ft_dh_ddphi1_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                        return FourierTransformsPartial.ft_dh_ddphi1_tau_Re(freq, A0, φ0, f0, τ0, R, φ0 - φ1, f1, τ1)
                     elseif variable == "A0"
-                        return FourierTransformsPartial.ft_dh_dA0_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                        return FourierTransformsPartial.ft_dh_dA0_tau_Re(freq, A0, φ0, f0, τ0, R, φ0 - φ1, f1, τ1)
                     elseif variable == "phi0"
                         return FourierTransformsPartial.ft_dh_dphitau_Re(freq, A0, φ0, f0, τ0)
                     else 
@@ -682,11 +682,11 @@ module FrequencyTransforms
                     elseif variable == "tau1"
                         return FourierTransformsPartial.ft_dh_dtau_Im(freq, R/A0, φ1, f1, τ1)
                     elseif variable == "R"
-                        return FourierTransformsPartial.ft_dh_dR_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                        return FourierTransformsPartial.ft_dh_dR_tau_Im(freq, A0, φ0, f0, τ0, R, φ0 - φ1, f1, τ1)
                     elseif variable == "dphi"
-                        return FourierTransformsPartial.ft_dh_ddphi1_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                        return FourierTransformsPartial.ft_dh_ddphi1_tau_Im(freq, A0, φ0, f0, τ0, R, φ0 - φ1, f1, τ1)
                     elseif variable == "A0"
-                        return FourierTransformsPartial.ft_dh_dA0_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                        return FourierTransformsPartial.ft_dh_dA0_tau_Im(freq, A0, φ0, f0, τ0, R, φ0 - φ1, f1, τ1)
                     elseif variable == "phi0"
                         return FourierTransformsPartial.ft_dh_dphitau_Im(freq, A0, φ0, f0, τ0)
                     else 
@@ -708,11 +708,11 @@ module FrequencyTransforms
                     elseif variable == "Q1"
                         return FourierTransformsPartial.ft_dh_dQ_Re(freq, R/A0, φ1, f1, pi*f1*τ1)
                     elseif variable == "R"
-                        return FourierTransformsPartial.ft_dh_dR_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                        return FourierTransformsPartial.ft_dh_dR_tau_Re(freq, A0, φ0, f0, τ0, R, φ0 - φ1, f1, τ1)
                     elseif variable == "dphi"
-                        return FourierTransformsPartial.ft_dh_ddphi1_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                        return FourierTransformsPartial.ft_dh_ddphi1_tau_Re(freq, A0, φ0, f0, τ0, R, φ0 - φ1, f1, τ1)
                     elseif variable == "A0"
-                        return FourierTransformsPartial.ft_dh_dA0_tau_Re(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                        return FourierTransformsPartial.ft_dh_dA0_tau_Re(freq, A0, φ0, f0, τ0, R, φ0 - φ1, f1, τ1)
                     elseif variable == "phi0"
                         return FourierTransformsPartial.ft_dh_dphitau_Re(freq, A0, φ0, f0, τ0)
                     else 
@@ -729,11 +729,11 @@ module FrequencyTransforms
                     elseif variable == "Q1"
                         return FourierTransformsPartial.ft_dh_dQ_Im(freq, R/A0, φ1, f1, pi*f1*τ1)
                     elseif variable == "R"
-                        return FourierTransformsPartial.ft_dh_dR_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                        return FourierTransformsPartial.ft_dh_dR_tau_Im(freq, A0, φ0, f0, τ0, R, φ0 - φ1, f1, τ1)
                     elseif variable == "dphi"
-                        return FourierTransformsPartial.ft_dh_ddphi1_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                        return FourierTransformsPartial.ft_dh_ddphi1_tau_Im(freq, A0, φ0, f0, τ0, R, φ0 - φ1, f1, τ1)
                     elseif variable == "A0"
-                        return FourierTransformsPartial.ft_dh_dA0_tau_Im(freq, A0, φ0, f0, τ0, R, φ1, f1, τ1)
+                        return FourierTransformsPartial.ft_dh_dA0_tau_Im(freq, A0, φ0, f0, τ0, R, φ0 - φ1, f1, τ1)
                     elseif variable == "phi0"
                         return FourierTransformsPartial.ft_dh_dphitau_Im(freq, A0, φ0, f0, τ0)
                     else 
