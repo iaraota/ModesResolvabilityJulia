@@ -1,7 +1,10 @@
+# Add modules to load path
+if !("./src/module" in LOAD_PATH)
+    push!(LOAD_PATH, "./src/module")
+end
+
 using DelimitedFiles, Distributed, HDF5, Random, Distributions, ProgressMeter, Dierckx, PyPlot
-include("AllFunctions.jl")
-include("Constants.jl")
-using .FrequencyTransforms, .PhysConstants, .Quantities
+using FrequencyTransforms, PhysConstants, Quantities
 
 import Base.Threads.@spawn
 
@@ -225,7 +228,7 @@ end
 function RunAllSXSFolders1(masses, detector, F_Re, F_Im, label, convention = "FH")
 	folders = readdir("../q_change/")
     for simu_folder_name in folders
-        if occursin("10.0", simu_folder_name)
+        if occursin("1.5", simu_folder_name)
             println(simu_folder_name)
             simu_folder = "../q_change/"*simu_folder_name
             ## fitted parameters
@@ -264,8 +267,8 @@ function RunAllSXSFolders1(masses, detector, F_Re, F_Im, label, convention = "FH
             @everywhere include("src/RayleighCriterion.jl")
             mode_1 = "(2,2,0)"
             modes = ["(2,2,1) I"]#, "(3,3,0)", "(4,4,0)", "(2,1,0)"]
-            amplitudes["(2,2,1) I"] = 0
-            N = Int(2)
+            #amplitudes["(2,2,1) I"] = 0
+            N = Int(1e2)
             z_min, z_max = 1e-10, 20
             z_range = exp10.(range(log10(z_min), stop = log10(z_max), length = N))
             file_path = "data/SNRFinalMassRedshift_"*detector*"_"*string(label)*"_"*convention*".h5"

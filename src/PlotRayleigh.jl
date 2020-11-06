@@ -1,10 +1,14 @@
+# Add modules to load path
+if !("./src/module" in LOAD_PATH)
+    push!(LOAD_PATH, "./src/module")
+end
+
 using PyPlot, HDF5, DelimitedFiles, DataFrames, LaTeXStrings, QuadGK, StatsBase
 using PyCall,Dierckx
 @pyimport scipy.interpolate as si
 mpl = pyimport("matplotlib")
-include("AllFunctions.jl")
-using .Quantities
-
+using Quantities
+using Dates
 function ImportDataGrid(file_name, k_mode, k_num, min, max)	
     files = Dict()
 
@@ -168,21 +172,67 @@ function ContourPoints(X,Y,Z)
 			end
 		end
 	end
-	indices = [1]
+	
+	M = hcat(x,y)[sortperm(x, rev = true),:]	# sort x reversed
+	x, y = M[:,1], M[:,2]
+
+	# select (x,y) while y is increasing  (x is reversed, decreasing)
+	i_right = 0
+	i_aux = 1
+	aux = 0
+	while aux == 0
+		if y[i_aux] <= y[i_aux + 1]
+			i_right = i_aux
+			i_aux += 1
+		else
+			aux = 1
+		end
+	end
+	
+	indices_y = [i_right]
+	i_max = 0
+	for i in i_right:length(y)
+		if y[i] >= y[indices_y[end]] && x[i] < x[indices_y[end]]
+			append!(indices_y, i)
+		end
+	end
+
+	
+	x_right = x[1:i_right-1]
+	y_right = y[1:i_right-1]
+	for i in indices_y
+		append!(x_right, x[i])
+		append!(y_right, y[i])
+	end
+
+	deleteat!(x, indices_y)
+	deleteat!(y, indices_y)
+	x_left = x[i_right+1:end]
+	y_left = y[i_right+1:end]
+
+	M = hcat(x_left,y_left)[sortperm(y_left, rev = true),:]	# sort y_left	
+	x_left, y_left = M[:,1], M[:,2]
+	
+	x = vcat(x_right, x_left)
+	y = vcat(y_right, y_left)
+	#x = x_right
+	#y = y_right
 	# makie curve smooth by deleting "zigzag"
-	#=
+	
+	indices = [1]
 	while indices != []
 		indices = Int[]
 		for i in 2:length(y)-1
-			if y[i] < y[i-1] && y[i] < y[i+1]
+			if y[i] <= y[i-1] && y[i] <= y[i+1] 
 				append!(indices, i)
 			end
 		end
 		deleteat!(x, indices)
 		deleteat!(y, indices)
+
 	end
-	=#
-	return x, y	
+	
+	return x, y
 end
 
 function NumberResolvableModes(DataModes,num_par="4")
@@ -301,12 +351,14 @@ function NewDataNumberResolvable(detector)
 		min = 1
 		max = 4
 	elseif detector == "LISA"
-		min = 4
+		min = 3
 		max = 9
 	else
 		error("Detector must be \"LIGO\", \"ET\", \"CE\" or \"LISA\".")
 	end
-	file_path = "/home/iara/Desktop/rayleigh/data_all/grande/FisherErrorsRedshift_01.5.SXSBBH0593_"*detector*"_FH_"
+	#label = "01.5.SXSBBH0593"
+	label = "10.0.SXSBBH1107"
+	file_path = "/home/iara/Doutorado/Julia/ModesResolvability/data/rayleigh/data/FisherErrorsRedshift_"*label*"_"*detector*"_FH_"
 	DataModes = ImportModesGrid(file_path, min, max)
 	if ! isdir("data/rayleigh/")
 		mkdir("data/rayleigh/")
@@ -315,7 +367,7 @@ function NewDataNumberResolvable(detector)
 	for num_pars in ["4", "6"]
 		NumResolv = Dict()
 		X, Y, NumResolv[2], NumResolv[3], NumResolv[4], NumResolv[5] = NumberResolvableModes(DataModes, num_pars)
-		h5open("data/rayleigh/NumberModeHorizon.h5", "cw") do file
+		h5open("data/rayleigh/NumberModeHorizon_"*label*".h5", "cw") do file
 			write(file, detector*"/"*num_pars*"/mass", X)
 			write(file, detector*"/"*num_pars*"/redshift", Y)
 			write(file, detector*"/"*num_pars*"/2modes", NumResolv[2])
@@ -343,12 +395,12 @@ function NewDataNumberResolvable(detector)
 			delete!(ResolveData, "(2,2,1) I+"*k)
 			delete!(ResolveData, "(2,2,1) II+"*k)
 		end
-		h5open("data/rayleigh/ModeHorizon.h5", "cw") do file
+		h5open("data/rayleigh/ModeHorizon_"*label*".h5", "cw") do file
 			write(file, detector*"/"*num_pars*"/mass", XX)
 			write(file, detector*"/"*num_pars*"/redshift", YY)
 		end
 		for (k,v) in ResolveData
-			h5open("data/rayleigh/ModeHorizon.h5", "cw") do file
+			h5open("data/rayleigh/ModeHorizon_"*label*".h5", "cw") do file
 				write(file, detector*"/"*num_pars*"/"*k, v)
 			end
 		end
@@ -357,7 +409,7 @@ function NewDataNumberResolvable(detector)
 end
 
 
-function PlotResolvableModes(detector)
+function PlotResolvableModesContour(detector)
 	rcParams = PyPlot.PyDict(PyPlot.matplotlib."rcParams")
 	rcParams["mathtext.fontset"] = "cm"
 	rcParams["font.family"] = "STIXGeneral"
@@ -383,12 +435,13 @@ function PlotResolvableModes(detector)
 		min = 1
 		max = 4
 	elseif detector == "LISA"
-		min = 4
+		min = 3
 		max = 9
 	else
 		error("Detector must be \"LIGO\", \"ET\", \"CE\" or \"LISA\".")
 	end
-	file_path = "/home/iara/Desktop/rayleigh/data_all/FisherErrorsRedshift_01.5.SXSBBH0593_"*detector*"_FH_"
+	label = "10.0.SXSBBH1107"
+	file_path = "/home/iara/Doutorado/Julia/ModesResolvability/data/rayleigh/data/FisherErrorsRedshift_"*label*"_"*detector*"_FH_"
 	DataModes = ImportModesGrid(file_path, min, max)
 
 	for num_pars in ["4", "6"]
@@ -400,7 +453,7 @@ function PlotResolvableModes(detector)
         
 		ax1.set_xscale("log")  
         ax1.set_yscale("log")  
-        ax1.set_ylim(1e-2, 1e2)
+        ax1.set_ylim(1e-2, 1e3)
         ax2 = ax1.twinx()
         mn, mx = ax1.get_ylim()
         ax2.set_ylim(luminosity_distance(mn)*1e-3, luminosity_distance(mx)*1e-3)
@@ -408,11 +461,16 @@ function PlotResolvableModes(detector)
     
         ax1.set_ylabel("redshift")
         ax1.set_xlabel(L"final mass $[M_\odot]$")
-        for k in [2,3,4,5]
-			x, y = ContourPoints(X, Y, NumResolv[k])
-			
-            ax1.plot(x,y, label = string(k)*" modes", lw = 3, ls = "-")
-			ax1.fill_between(x,y, 0, alpha = 0.5)
+		for k in [2,3,4,5]
+			if all(x->x == 0,  NumResolv[k])
+				continue
+			else
+				x, y = ContourPoints(X, Y, NumResolv[k])
+				
+				ax1.plot(x,y, label = string(k)*" modes", lw = 3, ls = "-")
+				#ax1.scatter(X,Y, c = NumResolv[k], alpha = 0.5 ,rasterized=true)
+				ax1.fill_between(x,y, 0, alpha = 0.5)
+			end
         end
         ax1.set_xlim(left = 1e1)
         
@@ -424,7 +482,98 @@ function PlotResolvableModes(detector)
         if ! isdir("figs/rayleigh/")
             mkdir("figs/rayleigh/")
         end
-		savefig("figs/rayleigh/"*detector*"_Nmodes_"*num_pars*"_menor.pdf")
+		savefig("figs/rayleigh/"*detector*"_Nmodes_"*num_pars*"_"*label*".pdf")
+	end
+end
+
+function PlotResolvableModesContourAll()
+	rcParams = PyPlot.PyDict(PyPlot.matplotlib."rcParams")
+	rcParams["mathtext.fontset"] = "cm"
+	rcParams["font.family"] = "STIXGeneral"
+	rcParams["figure.figsize"] = [20, 8]  # plot image size
+
+	SMALL_SIZE = 15
+	MEDIUM_SIZE = 20
+	BIGGER_SIZE = 28
+	
+	plt.rc("font", size=SMALL_SIZE)          # controls default text sizes
+	plt.rc("axes", titlesize=MEDIUM_SIZE)     # fontsize of the axes title
+	plt.rc("axes", labelsize=MEDIUM_SIZE)    # fontsize of the x and y labels
+	plt.rc("xtick", labelsize=MEDIUM_SIZE)    # fontsize of the tick labels
+	plt.rc("ytick", labelsize=MEDIUM_SIZE)    # fontsize of the tick labels
+	plt.rc("legend", fontsize=SMALL_SIZE)    # legend fontsize
+	plt.rc("figure", titlesize=BIGGER_SIZE)
+
+	colors = Dict(2=> "black", 3 => "tab:red", 4 => "tab:green", 5 => "tab:blue")
+	#label = "01.5.SXSBBH0593"
+	label = "10.0.SXSBBH1107"
+
+	DataNResolv = h5open("data/rayleigh/NumberModeHorizon_"*label*".h5") do file
+		read(file) 
+	end
+	for num_pars in ["4", "6"]
+		close("all")
+		fig, ax1 = subplots()
+		
+		ax1.set_xscale("log")  
+		ax1.set_yscale("log")  
+		ax1.set_ylim(1e-2, 1e3)
+		ax2 = ax1.twinx()
+		mn, mx = ax1.get_ylim()
+		ax2.set_yscale("log")  
+		ax2.set_ylim(luminosity_distance(mn)*1e-3, luminosity_distance(mx)*1e-3)
+		ax2.set_ylabel("Luminosity distance [Gpc]")
+	
+		ax1.set_ylabel("redshift")
+		ax1.set_xlabel(L"final mass $[M_\odot]$")
+		legends_lines = []
+		legends_labels = String[]
+		for detector in ["LIGO", "CE", "ET", "LISA"]
+			if detector == "LIGO"
+				ls = "solid"
+			elseif detector == "ET" 
+				ls = "dashed"
+			elseif detector == "CE"
+				ls = "dotted"
+			elseif detector == "LISA"
+				ls = "solid"
+			else
+				error("Detector must be \"LIGO\", \"ET\", \"CE\" or \"LISA\".")
+			end
+			X, Y = DataNResolv[detector][num_pars]["mass"], DataNResolv[detector][num_pars]["redshift"]
+			#X = (1 .+ Y).*X
+
+			for k in [2,3,4,5]
+				if all(x->x == 0,  DataNResolv[detector][num_pars][string(k)*"modes"])
+					continue
+				else
+					x, y = ContourPoints(X, Y, DataNResolv[detector][num_pars][string(k)*"modes"])					
+					if detector == "LISA"
+						ax1.plot(x,y, label = string(k)*" modes", lw = 3, ls = ls, color = colors[k])
+					else
+						ax1.plot(x,y, lw = 3, ls = ls, color = colors[k])
+					end				
+					#ax1.fill_between(x,y, 0, alpha = 0.5, color = colors[k])
+				end	
+				#ax1.contourf(X,Y,  DataNResolv[detector][num_pars][string(k)*"modes"], levels=[.9,2], alpha = 0.5)		
+			end
+		end
+
+        ax1.set_xlim(1e1, 1e9)
+        
+		ax1.legend()
+		
+        extra = mpl.lines.Line2D([0], [0], color="white")
+		legend_extra = legend([extra], [L"$q = 10$"], handlelength = 0, fontsize = SMALL_SIZE, frameon = false, 	bbox_to_anchor=(0.09, 0.999))
+		gca().add_artist(legend_extra)
+
+		ax1.set_title("Spectroscopy horizon, "*num_pars*" parameters")
+
+        fig.tight_layout()
+        if ! isdir("figs/rayleigh/")
+            mkdir("figs/rayleigh/")
+        end
+		savefig("figs/rayleigh/all_Nmodes_"*num_pars*"_"*label*".pdf")
 	end
 end
 
@@ -701,7 +850,7 @@ function PlotNumberResolvableModesAllGrid()
 		ax1.set_xlim(1e1, 1e9)
         
         extra = mpl.lines.Line2D([0], [0], color="white")
-		legend_extra = legend([extra], [L"$q = 1.5$"], handlelength = 0, fontsize = SMALL_SIZE, frameon = false, 	bbox_to_anchor=(0.055, 1))
+		legend_extra = legend([extra], [L"$q = 1.5$"], handlelength = 0, fontsize = SMALL_SIZE, frameon = false, 	bbox_to_anchor=(0.09, 0.999))
 		ax1.legend(legends_lines,legends_labels, loc = "upper right")
 		
 		gca().add_artist(legend_extra)
@@ -748,7 +897,8 @@ function PlotHorizon2modes(detector, mode)
 	else
 		error("Detector must be \"LIGO\", \"ET\", \"CE\" or \"LISA\".")
 	end
-	file_path = "/home/iara/Desktop/rayleigh/data_all/z100/FisherErrorsRedshift_01.5.SXSBBH0593_"*detector*"_FH_"
+	label = "10.0.SXSBBH1107"
+	file_path = "/home/iara/Doutorado/Julia/ModesResolvability/data/rayleigh/data/FisherErrorsRedshift_"*label*"_"*detector*"_FH_"
 	DataModes = ImportModesGrid(file_path, min, max, mode, true)
 	
 
@@ -769,12 +919,16 @@ function PlotHorizon2modes(detector, mode)
         ax1.set_xlabel(L"final mass $[M_\odot]$")
 		for (k,v) in DataModes
 			#ax1.contour(v[num_pars][1], v[num_pars][2], v[num_pars][8], levels = 2)
-			x, y = ContourPoints(v[num_pars][1], v[num_pars][2], v[num_pars][8])
-			#x = x.*(1 .+ y)
-            #ax1.plot(x,y, label = k, lw = 3, ls = "-")
-            ax1.scatter(x,y, label = k, marker = ",", s= 1)
-            #ax1.fill(x,y, alpha = 0.4)
-			#ax1.fill_between(x,y, 0, alpha = 0.5)
+			if all(x->x==0, v[num_pars][8])
+				continue
+			else
+				x, y = ContourPoints(v[num_pars][1], v[num_pars][2], v[num_pars][8])
+				#x = x.*(1 .+ y)
+				ax1.plot(x,y, label = k, lw = 3, ls = "-")
+				#ax1.scatter(x,y, label = k, marker = ",", s= 1)
+				#ax1.fill(x,y, alpha = 0.4)
+				ax1.fill_between(x,y, 0, alpha = 0.5)
+			end
         end
         ax1.set_xlim(left = 1e1)
         
@@ -786,7 +940,88 @@ function PlotHorizon2modes(detector, mode)
         if ! isdir("figs/rayleigh/")
             mkdir("figs/rayleigh/")
         end
-		savefig("figs/rayleigh/"*detector*"_"*mode*"_"*num_pars*".pdf")
+		savefig("figs/rayleigh/"*detector*"_"*mode*"_"*num_pars*"_"*label*".pdf")
+	end
+end
+
+function PlotHorizon2modesContour(detector, mode)
+	rcParams = PyPlot.PyDict(PyPlot.matplotlib."rcParams")
+	rcParams["mathtext.fontset"] = "cm"
+	rcParams["font.family"] = "STIXGeneral"
+	rcParams["figure.figsize"] = [15, 8]  # plot image size
+
+	SMALL_SIZE = 15
+	MEDIUM_SIZE = 20
+	BIGGER_SIZE = 28
+	
+	plt.rc("font", size=SMALL_SIZE)          # controls default text sizes
+	plt.rc("axes", titlesize=MEDIUM_SIZE)     # fontsize of the axes title
+	plt.rc("axes", labelsize=MEDIUM_SIZE)    # fontsize of the x and y labels
+	plt.rc("xtick", labelsize=MEDIUM_SIZE)    # fontsize of the tick labels
+	plt.rc("ytick", labelsize=MEDIUM_SIZE)    # fontsize of the tick labels
+	plt.rc("legend", fontsize=SMALL_SIZE)    # legend fontsize
+	plt.rc("figure", titlesize=BIGGER_SIZE)
+
+
+	if detector == "LIGO"
+		min = 1
+		max = 4
+		smooth = 1
+	elseif detector == "ET" || detector == "CE"
+		min = 1
+		max = 4
+	elseif detector == "LISA"
+		min = 3
+		max = 9
+	else
+		error("Detector must be \"LIGO\", \"ET\", \"CE\" or \"LISA\".")
+	end
+	label = "10.0.SXSBBH1107"
+	file_path = "/home/iara/Doutorado/Julia/ModesResolvability/data/rayleigh/data/FisherErrorsRedshift_"*label*"_"*detector*"_FH_"
+	DataModes = ImportModesGrid(file_path, min, max, mode, true)
+	
+
+	for num_pars in ["4", "6"]
+		NumResolv = Dict()
+        close("all")
+	    fig, ax1 = subplots()
+        
+		ax1.set_xscale("log")  
+        ax1.set_yscale("log")  
+        ax1.set_ylim(1e-2, 1e2)
+        ax2 = ax1.twinx()
+        mn, mx = ax1.get_ylim()
+        ax2.set_ylim(luminosity_distance(mn)*1e-3, luminosity_distance(mx)*1e-3)
+        ax2.set_ylabel("Luminosity distance [Gpc]")
+    
+        ax1.set_ylabel("redshift")
+		ax1.set_xlabel(L"final mass $[M_\odot]$")
+		legends_lines = []
+		legends_labels = String[]
+		for (k,v) in DataModes
+			X, Y, Z = v[num_pars][1], v[num_pars][2], v[num_pars][8]
+			if all(x->x==0, Z)
+				continue
+			else
+				x, y = ContourPoints(X, Y, Z)
+				ax1.plot(x,y, label = k, lw = 3, ls = "-")
+				ax1.fill_between(x,y, 0, alpha = 0.5)
+			end
+
+        end
+        ax1.set_xlim(left = 1e1)
+        ax1.legend()
+	
+		
+		fig.tight_layout()
+
+        ax1.set_title(detector*", "*num_pars*" parameters")
+
+        fig.tight_layout()
+        if ! isdir("figs/rayleigh/")
+            mkdir("figs/rayleigh/")
+        end
+		savefig("figs/rayleigh/"*detector*"_"*mode*"_"*num_pars*"_"*label*".pdf")
 	end
 end
 
@@ -844,7 +1079,7 @@ function PlotHorizon2modesGrid(detector, mode)
 	else
 		error("Detector must be \"LIGO\", \"ET\", \"CE\" or \"LISA\".")
 	end
-	file_path = "/home/iara/Desktop/rayleigh/data_all/z100/FisherErrorsRedshift_01.5.SXSBBH0593_"*detector*"_FH_"
+	file_path = "/home/iara/Desktop/rayleigh/data_all/grande/FisherErrorsRedshift_01.5.SXSBBH0593_"*detector*"_FH_"
 	DataModes = ImportModesGrid(file_path, min, max, mode, true)
 	
 
@@ -867,7 +1102,7 @@ function PlotHorizon2modesGrid(detector, mode)
 		legends_labels = String[]
 		for (k,v) in DataModes
 			X, Y, Z = v[num_pars][1], v[num_pars][2], v[num_pars][8]
-
+			
 			ax1.contourf(X,Y, Z, levels=[.9,2], cmap = cmap_f[k], alpha = 0.5)		
 			ax1.contour(X,Y, Z, levels = 1, cmap = cmap_f[k], linewidths = 3)	
 			

@@ -200,7 +200,7 @@ function PlotHorizonGrid(DataModes,label)
 	rcParams = PyPlot.PyDict(PyPlot.matplotlib."rcParams")
 	rcParams["mathtext.fontset"] = "cm"
 	rcParams["font.family"] = "STIXGeneral"
-	rcParams["figure.figsize"] = [15, 8]  # plot image size
+	rcParams["figure.figsize"] = [12, 8]  # plot image size
 
 	font_size = 28
 	rcParams["xtick.labelsize"]= font_size
@@ -236,5 +236,5 @@ function PlotHorizonGrid(DataModes,label)
 	end
 	title(label*", q = 10", fontsize = font_size)
 	tight_layout()
-	savefig("figs/"*label*"_SNR.pdf")	
+	savefig("figs/"*label*"_SNR_q1.5.pdf")	
 end

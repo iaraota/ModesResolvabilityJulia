@@ -1,7 +1,11 @@
+# Add modules to load path
+if !("./src/module" in LOAD_PATH)
+    push!(LOAD_PATH, "./src/module")
+end
+
 using DelimitedFiles, Distributed, HDF5, Random, Distributions, ProgressMeter, LinearAlgebra
-include("AllFunctions.jl")
-include("Constants.jl")
-using .FrequencyTransforms, .PhysConstants, .Quantities
+
+using FrequencyTransforms, PhysConstants, Quantities
 
 import Base.Threads.@spawn
 
@@ -55,6 +59,9 @@ function RunAllSXSFoldersLinearAllModes(masses, detector, F_Re, F_Im, label, sim
                 #N = Int(8e2)
                 N = Int(1e2)
                 z_max = 5
+            elseif detector == "LISA"
+                N = Int(1e2)
+                z_max = 1e3
             else
                 #N = Int(1e4)
                 N = Int(1e2)

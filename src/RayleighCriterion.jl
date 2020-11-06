@@ -1,8 +1,11 @@
 #= The functions depend on the following modules (add them in the main)
+# Add modules to load path
+if !("./src/module" in LOAD_PATH)
+    push!(LOAD_PATH, "./src/module")
+end
+
 using LinearAlgebra
-include("AllFunctions.jl")
-include("Constants.jl")
-using .FrequencyTransforms, .PhysConstants, .Quantities
+using FrequencyTransforms, PhysConstants, Quantities
 =#
 function FisherMatrixElements(strain_unit, noise_freq, amplitudes, phases, freq, tau, mode_1, mode_2, convention = "FH")
 	value = noise_freq, amplitudes[mode_1] * strain_unit, phases[mode_1], freq[mode_1], tau[mode_1], amplitudes[mode_2] /amplitudes[mode_1], phases[mode_2], freq[mode_2], tau[mode_2]

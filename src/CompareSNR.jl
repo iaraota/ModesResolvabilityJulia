@@ -1,10 +1,15 @@
+# Add modules to load path
+if !("./src/module" in LOAD_PATH)
+    push!(LOAD_PATH, "./src/module")
+end
+
 using DelimitedFiles, Distributed, HDF5, Random, Distributions, ProgressMeter, PyPlot, FFTW, DSP, PyCall
-include("AllFunctions.jl")
-include("Constants.jl")
+
 mpl = pyimport("matplotlib")
 
 using Interpolations
-using .FrequencyTransforms, .PhysConstants, .Quantities
+using FrequencyTransforms, PhysConstants, Quantities
+
 function trapezio(f, x)
     y = 0
     @fastmath @inbounds @simd for i in 2:length(f)

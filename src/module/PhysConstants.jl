@@ -1,3 +1,5 @@
+__precompile__()
+
 module PhysConstants
     # constants
     Gconst = 6.67259e-11  # m^3/(kg*s^2)
