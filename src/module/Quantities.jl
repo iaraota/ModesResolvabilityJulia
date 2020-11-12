@@ -41,7 +41,7 @@ module Quantities
         Ω_K = 0.0
 
         E(z) = sqrt(Ω_M*(1+z)^3 + Ω_K*(1+z)^2 + Ω_Λ)
-        D_C = D_H*quadgk(x -> 1/E(x), 0, redshift, rtol=1e-18)[1]
+        D_C = D_H*quadgk(x -> 1/E(x), 0, redshift)[1]
         D_L = (1 + redshift)*D_C
         #= If Ω_K was not 0
         if Ω_K > 0

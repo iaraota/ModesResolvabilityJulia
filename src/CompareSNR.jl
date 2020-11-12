@@ -137,16 +137,28 @@ function CompareAll(M_f, redshift)
    
 end
 
+function ruidos()
+    noise = ImportDetectorStrain("LISA", false)
+    f = noise["freq"]
+    Sh = noise["psd"]
+
+    
+    loglog(f, Sh, lw = 3)
+    loglog(f, sqrt.(ShNSA.(f)), lw = 2)
+
+end
+
+
 function PlotSNR(redshift)
     mass_f = 0.952032939704
     ωr = 0.55578866 
-    #ωi = 0.08517178
-    ωi = 1e-2
+    ωi = 0.08517178
+    #ωi = 1e-2
     A = 0.4118841893118968
     masses = exp10.(range(4, stop = 10, length = 20))
 
-    f = exp10.(range(-5, stop = 0, length = Int(1e4)))
-    Sh = ShNSA.(f)
+    f_analitico = exp10.(range(-5, stop = 0, length = Int(1e4)))
+    Sh_analitico = ShNSA.(f)
 
     SNR_ber = zeros(0)
     SNR = zeros(0)
@@ -162,7 +174,12 @@ function PlotSNR(redshift)
     end
     t_final = 100
     dtime = 0.1
-    phi = π
+    phi = 0
+
+    noise = ImportDetectorStrain("LISA", false)
+    noise_itp = ImportDetectorStrain("LISA", true)
+    f = noise["freq"]
+    Sh = noise["psd"].^2
     for M_f in masses
         # Source parameters
         M_final = (1+redshift)*M_f*PhysConstants.tSun
@@ -176,6 +193,11 @@ function PlotSNR(redshift)
         tau =  time_unit/ωi
 
         norm = A*M_final/D_L
+        f_S = 1/5/4/π
+        convention = "FH"
+        ft_Re = sqrt(f_S)*time_unit*strain_unit*abs.(FrequencyTransforms.Fourier_1mode.("real", f*time_unit, A, phi, ωr, ωi, convention))
+        ft_Im = sqrt(f_S)*time_unit*strain_unit*abs.(FrequencyTransforms.Fourier_1mode.("imaginary", f*time_unit, A, phi, ωr, ωi, convention))
+
         FT_berti_re = norm*(exp(1im*phi)*berti_ft.(tau,freq,f) + exp(-1im*phi)*berti_ft.(tau,-freq,f))./2
         FT_berti_im = norm*(exp(1im*phi)*berti_ft.(tau,freq,f) - exp(-1im*phi)*berti_ft.(tau,-freq,f))./2/1im
         FT_QNM_re = norm*(exp(1im*phi)*ft_psi.(f, freq,tau) .+ exp(-1im*phi)*ft_psi.(f, -freq,tau))./2
@@ -204,7 +226,7 @@ function PlotSNR(redshift)
         t = 0:Ts:tmax
 
         # signal 
-    
+    #=
         signal_reflec_re = real.(QNM_reflec.(tall, M_final, D_L, A, phi, freq, tau)/2)
         signal_reflec_im = imag.(QNM_reflec.(tall, M_final, D_L, A, phi, freq, tau)/2)
         freqs_reflec = FFTW.fftfreq(length(signal_reflec_re), 1.0/Ts) |> fftshift
@@ -226,15 +248,22 @@ function PlotSNR(redshift)
 
         end
 
-    
-        append!(SNR,sqrt(1/5/4/pi*trapezio(4*abs.((FT_QNM_re)).^2 ./ Sh, f)))
-        append!(SNR_ber,sqrt(1/5/2/pi*trapezio(4*abs.((FT_berti_re)).^2 ./ Sh, f)))
+    =#
+        #append!(SNR,sqrt(1/5/4/pi*trapezio(4*abs.((FT_QNM_re+FT_QNM_im)).^2 ./ Sh, f)))
+        append!(SNR, Quantities.SNR_QNM(noise["freq"], noise["psd"], ft_Re, ft_Im, 1, 1))
+        append!(SNR_ber,sqrt(1/5/4/pi*trapezio(4*abs.((FT_berti_re+FT_berti_im)).^2 ./ Sh, f)))
   #      append!(SNR_tapper, sqrt.(1/5/4/pi*trapezio(4 .*abs.(F_tapper).^2 ./ ShNSA.(freqs), freqs)))
         #append!(SNR_itp, sqrt.(1/5/4/pi*trapezio(4 .*abs.(sitp.(f)).^2 ./ ShNSA.(f), f)))
         #append!(freqs, freq.^(-3))
         #append!(SNR, sqrt.(SNR_iara(f, M_final, D_L, A, freq, tau, Sh)))
        # append!(SNR_ber, sqrt.(SNR_berti(f, M_final, D_L, A, freq, tau, Sh)))
-        append!(SNR_approx, sqrt.(approx_rho_FH(M_final, D_L, A, freq, tau, ShNSA(freq))))
+
+        
+        if freq > 1 || freq < 1e-5
+            append!(SNR_approx, 0)
+        else
+            append!(SNR_approx, sqrt.(approx_rho_FH(M_final, D_L, A, freq, tau, noise_itp(freq).^2)))
+        end
     end
     rcParams = PyPlot.PyDict(PyPlot.matplotlib."rcParams")
 	rcParams["mathtext.fontset"] = "cm"
@@ -244,17 +273,18 @@ function PlotSNR(redshift)
     font_size = 28
     mpl.rc("font", size=font_size)
     
-    close("all")
-    loglog(masses, SNR_ber, label = "FH", ls = "-", lw = 4, color = "aqua", alpha = 0.4)
-    loglog(masses, SNR, ls = "-", label = "EF", lw = 4, color = "pink", alpha = 0.4)
-    #loglog(masses, SNR_approx, ls = "-", label = "delta", lw = 4, color = "lime", alpha = 0.4)
-   
+    #close("all")
+    #loglog(masses, SNR_ber, label = "FH $redshift", ls = "-", lw = 4)#, color = "aqua")
+    loglog(masses, SNR, ls = "-", label = "FH $redshift", lw = 3)#, color = "pink")
+    loglog(masses, SNR_approx, ls = "--", label = "approx $redshift", lw = 2)#, color = "lime")
+   #=
     for i in alphas
         loglog(masses, SNR_reflect[i], ls = "-", label = "reflect α = "*string(i), lw = 2)
         loglog(masses, SNR_tukey[i], label = "tukey α = "*string(i), lw = 2, ls = "--")
     end
     
-    
+    =#
+
     #loglog(masses, SNR_tapper, color = "tab:purple", label = "tukey ") 
     #loglog(masses, SNR_itp, color = "tab:orange", label = "interp") 
     #loglog(f, sqrt.(Sh).*1e2)

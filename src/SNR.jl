@@ -3,12 +3,13 @@ if !("./src/module" in LOAD_PATH)
     push!(LOAD_PATH, "./src/module")
 end
 
-using DelimitedFiles, Distributed, HDF5, Random, Distributions, ProgressMeter, Dierckx, PyPlot
+using DelimitedFiles, Distributed, HDF5, Random, Distributions, ProgressMeter, Dierckx, PyPlot, QuadGK
 using FrequencyTransforms, PhysConstants, Quantities
 
 import Base.Threads.@spawn
 
-function ComputeSNR1mode(M_f, mass_f, F_Re, F_Im, mode_1, noise, amplitudes, phases, omega, redshift, convention = "FH")
+
+function ComputeFourier1mode(M_f, mass_f, F_Re, F_Im, mode_1, noise, amplitudes, phases, omega, redshift, convention = "FH")
     # Source parameters
     M_final = (1+redshift)*M_f
     M_total = M_final / mass_f
@@ -16,12 +17,14 @@ function ComputeSNR1mode(M_f, mass_f, F_Re, F_Im, mode_1, noise, amplitudes, pha
 
     time_unit = (M_total)*PhysConstants.tSun
     strain_unit = ((M_final)*PhysConstants.tSun) / (D_L*PhysConstants.Dist)
-
-    freq = noise["freq"]
+    f_S = sqrt(1/5/4/π)
+    phases[mode_1] = 0
     if convention == "FH" || convention == "EF"
-        ft_Re = time_unit*strain_unit*abs.(FrequencyTransforms.Fourier_1mode.("real", freq*time_unit, amplitudes[mode_1], phases[mode_1], omega[mode_1][1], omega[mode_1][2], convention))
-        ft_Im = time_unit*strain_unit*abs.(FrequencyTransforms.Fourier_1mode.("imaginary", freq*time_unit, amplitudes[mode_1], phases[mode_1], omega[mode_1][1], omega[mode_1][2], convention))
-        SNR = Quantities.SNR_QNM(noise, ft_Re, ft_Im, F_Re, F_Im)
+        ft_Re = time_unit*strain_unit*abs.(FrequencyTransforms.Fourier_1mode.("real", noise["freq"]*time_unit, amplitudes[mode_1], phases[mode_1], omega[mode_1][1], omega[mode_1][2], convention))
+        ft_Im = time_unit*strain_unit*abs.(FrequencyTransforms.Fourier_1mode.("imaginary", noise["freq"]*time_unit, amplitudes[mode_1], phases[mode_1], omega[mode_1][1], omega[mode_1][2], convention))
+        SNR = f_S*Quantities.SNR_QNM(noise["freq"], noise["psd"], ft_Re, ft_Im, F_Re, F_Im)
+    elseif convention == "Approx"
+        SNR = ComputeSNRApprox1(M_f, mass_f, mode_1, noise, amplitudes, omega, redshift)
     else
         error("convention argument must be set to \"FH\" or \"EF\".")
     end
@@ -46,11 +49,11 @@ function ComputeSNRApprox1(M_f, mass_f, mode, noise, amplitudes, omega, redshift
     Q_factor[mode] = π*freq[mode]*tau[mode]
 
     noise_f = noise(freq[mode])
-    if noise_f == 0
+    if noise_f == 0 || noise_f < 1e-25
         noise_f = 1e3
     end
 
-    SNR = strain_unit^2*Q_factor[mode]*amplitudes[mode]^2/(20*π^2*freq[mode]*noise_f^2)
+    SNR = sqrt(strain_unit^2*Q_factor[mode]*amplitudes[mode]^2/(20*π^2*freq[mode]*noise_f^2))
     return SNR         
 end
 
@@ -100,7 +103,7 @@ function ComputeSNRApprox2(M_f, mass_f, mode_1, mode_2, noise, amplitudes, phase
 end
 
 
-function ComputeSNR(M_f, mass_f, F_Re, F_Im, mode_1, mode_2, amplitudes, phases, omega, redshift, detector, convention = "FH")
+function ComputeSNR2Modes(M_f, mass_f, F_Re, F_Im, mode_1, mode_2, amplitudes, phases, omega, redshift, detector, convention = "FH")
     # Source parameters
     M_final = (1+redshift)*M_f
     M_total = M_final / mass_f
@@ -393,3 +396,120 @@ function RunAllSXSFoldersApprox(masses, detector, N_avg, label)
     end
 end
 
+
+function ComputeSingleModeSNRAll(masses, detector, F_Re, F_Im, label, simulation_folder = "SXS", convention = "FH")
+    if convention == "FH" || convention == "EF"
+        noise = ImportDetectorStrain(detector, false)
+    elseif convention == "Approx"
+        noise = ImportDetectorStrain(detector, true)
+    else
+        error("convention argument must be set to \"FH\" or \"EF\".")
+    end
+
+    folders = readdir("../q_change/")
+    for simu_folder_name in folders
+        if occursin(simulation_folder, simu_folder_name)
+            println(simu_folder_name)
+            simu_folder = "../q_change/"*simu_folder_name
+            ## fitted parameters
+            ratios = h5open(simu_folder*"/arrays/fits/ratios.h5", "r") do file
+                read(file)
+            end
+            amplitudes = h5open(simu_folder*"/arrays/fits/amplitudes.h5", "r") do file
+                read(file)
+            end
+            phases = h5open(simu_folder*"/arrays/fits/phases.h5", "r") do file
+                read(file)
+            end
+            omega = h5open(simu_folder*"/arrays/fits/omega.h5", "r") do file
+                read(file)
+            end
+            dphases = Dict()
+            for (key,value) in phases
+                dphases[key] = phases["(2,2,0)"] - value
+            end
+            # Consider number of expected detection in (3,3,0) mode
+            for (key, value) in amplitudes
+                amplitudes[key] = abs(amplitudes[key])
+            end
+
+            # final mass
+            mass_f = 0.0
+            open(simu_folder*"/import_data/metadata.txt") do file
+                parameters = Dict()
+                for line in eachline(file)
+                    # final mass
+                    if occursin("remnant-mass", line)
+                        mass_f = parse(Float64, split(line)[3])
+                    end
+                end
+            end
+            ####################################################################################################################
+            
+            modes = ["(2,2,1) I", "(2,2,1) II", "(3,3,0)", "(4,4,0)", "(2,1,0)"]
+            all_modes = ["(2,2,0)", "(2,2,1) I", "(2,2,1) II", "(3,3,0)", "(4,4,0)", "(2,1,0)"]
+            nums = [4, 6]
+            z_min = 1e-2
+            if detector == "LIGO"
+                #N = Int(8e2)
+                N = Int(1e2)
+                z_max = 5
+            elseif detector == "LISA"
+                N = Int(1e2)
+                z_max = 1000
+            else
+                #N = Int(1e4)
+                N = Int(1e2)
+                z_max = 100
+            end
+            z_range = exp10.(range(log10(z_min), stop = log10(z_max), length = N))
+
+
+            if ! isdir("data/SNR/")
+                mkdir("data/SNR/")
+            end
+            file_path = "data/SNR/SNR_"*simu_folder_name*"_"*detector*"_"*string(convention)*"_"*string(label)*".h5"
+
+			if isfile(file_path)
+				rm(file_path)
+            end
+            
+            save_dict = Dict()
+            @showprogress for M_f in masses
+                for mode_1 in all_modes
+                    for num_par in nums
+                        save_dir = mode_1*"/"*string(M_f)*"/"*string(num_par)
+                        save_dict[save_dir] = zeros(N, 2)
+                        Base.Threads.@threads for z_rand in z_range
+                            i = findall(x -> x == z_rand, z_range)[1]
+                            SNR = ComputeFourier1mode(M_f, mass_f, F_Re, F_Im, mode_1, noise, amplitudes, phases, omega, z_rand, convention)
+                            save_results =  [z_rand, SNR]
+                            for j in 1:length(save_results)
+                                save_dict[save_dir][i,j] = save_results[j]
+                            end
+                        end
+                        h5open(file_path, "cw") do file
+                            write(file, save_dir, save_dict[save_dir])
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+function RunAllDetectoresSingleMode(label_simu, F_Re = 1, F_Im = 0, convention = "FH")
+length = 4
+min = 1
+max = 4
+    for detector in ["LIGO", "ET", "CE", "LISA"]
+        if detector == "LISA"
+            min = 3
+            max = 9
+            length = 7
+        end
+        println(detector)
+        
+        ComputeSingleModeSNRAll(exp10.(range(min, stop = max+1, length = length*200)), detector, F_Re, F_Im, "all_masses", label_simu, convention)
+    end
+end    

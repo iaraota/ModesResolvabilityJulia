@@ -60,7 +60,7 @@ function RunAllSXSFoldersLinearAllModes(masses, detector, F_Re, F_Im, label, sim
                 N = Int(1e2)
                 z_max = 5
             elseif detector == "LISA"
-                N = Int(1e2)
+                N = Int(5e2)
                 z_max = 1e3
             else
                 #N = Int(1e4)

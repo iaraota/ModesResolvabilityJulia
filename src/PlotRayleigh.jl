@@ -16,7 +16,7 @@ function meshgrid(x, y)
     return X, Y
 end
 
-function ImportDataGrid(file_name, k_mode, k_num, min, max)	
+function ImportDataGridRayleigh(file_name, k_mode, k_num, min, max)	
     files = Dict()
 
     for i in min:max
@@ -86,7 +86,7 @@ function ImportDataGrid(file_name, k_mode, k_num, min, max)
 
 end
 
-function ImportModesGrid(file_name, min, max, choose_modes = "All", merge_221 = false)
+function ImportModesGridRayleigh(file_name, min, max, choose_modes = "All")
 	if choose_modes == "All"	
 		modes = ["(2,2,0)+(2,2,1) I", "(2,2,0)+(3,3,0)", "(2,2,0)+(4,4,0)", "(2,2,0)+(2,1,0)",
 		"(2,2,1) I+(3,3,0)", "(2,2,1) I+(4,4,0)", "(2,2,1) I+(2,1,0)",
@@ -110,51 +110,10 @@ function ImportModesGrid(file_name, min, max, choose_modes = "All", merge_221 = 
 	for k_mode in modes
 		ModesData[k_mode] = Dict()
 		for k_num in num_par
-			ModesData[k_mode][k_num]  = ImportDataGrid(file_name, k_mode, k_num, min, max)	
+			ModesData[k_mode][k_num]  = ImportDataGridRayleigh(file_name, k_mode, k_num, min, max)	
 		end				
 	end
 
-	# merge (2,2,1) methods into one by imposing that both are resolvable
-	if merge_221 == true
-		if choose_modes == "(2,2,0)"
-			ModesData["(2,2,0)+(2,2,1)"] = Dict()
-		elseif choose_modes == "(2,2,1)"
-			ModesData["(2,2,0)+(2,2,1)"] = Dict()
-			for harmonics in ["(3,3,0)", "(4,4,0)", "(2,1,0)"]
-				ModesData["(2,2,1)+"*harmonics] = Dict()
-			end
-		else
-			ModesData["(2,2,1)+"*choose_modes] = Dict()
-		end
-		
-		for num_pars in num_par
-			if choose_modes == "(2,2,0)"
-				ModesData["(2,2,0)+(2,2,1)"][num_pars] = (ModesData["(2,2,0)+(2,2,1) I"][num_pars] .* ModesData["(2,2,0)+(2,2,1) II"][num_pars])
-			elseif choose_modes == "(2,2,1)"
-				ModesData["(2,2,0)+(2,2,1)"][num_pars] = (ModesData["(2,2,0)+(2,2,1) I"][num_pars] .* ModesData["(2,2,0)+(2,2,1) II"][num_pars])
-				for harmonics in ["(3,3,0)", "(4,4,0)", "(2,1,0)"]
-					ModesData["(2,2,1)+"*harmonics][num_pars] = (ModesData["(2,2,1) I+"*harmonics][num_pars] .* ModesData["(2,2,1) II+"*harmonics][num_pars])
-				end
-			else
-				ModesData["(2,2,1)+"*choose_modes][num_pars] = (ModesData["(2,2,1) I+"*choose_modes][num_pars] .* ModesData["(2,2,1) II+"*choose_modes][num_pars])
-			end
-		end
-		if choose_modes == "(2,2,0)"
-			delete!(ModesData, "(2,2,0)+(2,2,1) I")
-			delete!(ModesData, "(2,2,0)+(2,2,1) II")
-		elseif choose_modes == "(2,2,1)"
-			delete!(ModesData, "(2,2,0)+(2,2,1) I")
-			delete!(ModesData, "(2,2,0)+(2,2,1) II")
-			for harmonics in ["(3,3,0)", "(4,4,0)", "(2,1,0)"]
-				delete!(ModesData, "(2,2,1) I+"*harmonics)
-				delete!(ModesData, "(2,2,1) II+"*harmonics)
-			end
-		else
-			delete!(ModesData, "(2,2,1) I+"*choose_modes)
-			delete!(ModesData, "(2,2,1) II+"*choose_modes)
-		end
-
-	end
 	return ModesData	
 end
 
@@ -397,7 +356,7 @@ function NewDataNumberResolvable(detector, q_mass = 1.5)
 
 	label = SelectSimulation(q_mass)
 	file_path = "data/rayleigh/data/FisherErrorsRedshift_"*label*"_"*detector*"_FH_"
-	DataModes = ImportModesGrid(file_path, min, max)
+	DataModes = ImportModesGridRayleigh(file_path, min, max)
 	if ! isdir("data/rayleigh/")
 		mkdir("data/rayleigh/")
 	end
@@ -425,11 +384,11 @@ function NewDataNumberResolvable(detector, q_mass = 1.5)
 		end
 		
 		# consider the mean value between (2,2,1) two methods
-		ResolveData["(2,2,0)+(2,2,1)"] = (ResolveData["(2,2,0)+(2,2,1) I"] .+ ResolveData["(2,2,0)+(2,2,1) II"])./2
+		ResolveData["(2,2,0)+(2,2,1)"] = ResolveData["(2,2,0)+(2,2,1) I"] .* ResolveData["(2,2,0)+(2,2,1) II"]
 		delete!(ResolveData, "(2,2,0)+(2,2,1) I")
 		delete!(ResolveData, "(2,2,0)+(2,2,1) II")
 		for k in ["(3,3,0)", "(4,4,0)", "(2,1,0)"]
-			ResolveData["(2,2,1)+"*k] = (ResolveData["(2,2,1) I+"*k] .+ ResolveData["(2,2,1) II+"*k])./2
+			ResolveData["(2,2,1)+"*k] = ResolveData["(2,2,1) I+"*k] .* ResolveData["(2,2,1) II+"*k]
 			delete!(ResolveData, "(2,2,1) I+"*k)
 			delete!(ResolveData, "(2,2,1) II+"*k)
 		end
@@ -446,7 +405,7 @@ function NewDataNumberResolvable(detector, q_mass = 1.5)
 
 end
 
-function NewDataAllDetectors(q_mass)
+function NewDataAllDetectorsRayleigh(q_mass)
 	for detector in ["LIGO", "ET", "CE", "LISA"]
 		NewDataNumberResolvable(detector, q_mass)
 	end
@@ -544,7 +503,7 @@ function PlotResolvableModesContourAll(q_mass)
 end
 
 
-function PlotHorizon2modesContour(detector, choose_modes, q_mass)
+function PlotHorizon2modesContourRayleigh(detector, choose_modes, q_mass)
 	rcParams = PyPlot.PyDict(PyPlot.matplotlib."rcParams")
 	rcParams["mathtext.fontset"] = "cm"
 	rcParams["font.family"] = "STIXGeneral"
