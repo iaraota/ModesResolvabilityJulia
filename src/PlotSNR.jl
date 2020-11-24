@@ -16,7 +16,7 @@ function meshgrid(x, y)
     return X, Y
 end
 
-function ImportDataGridSNR(file_name, k_mode, k_num, min, max)	
+function ImportDataGridSNR(file_name, k_mode)	
 	data = h5open(file_name*".h5") do file
 		read(file, k_mode) 
 	end
@@ -28,7 +28,7 @@ function ImportDataGridSNR(file_name, k_mode, k_num, min, max)
 	end
 	M_f = sort(M_f)
 	
-	redshift = data[string(M_f[1])][k_num][:,1]
+	redshift = data[string(M_f[1])][:,1]
 
 	M, N = length(M_f), length(redshift)
 
@@ -36,7 +36,7 @@ function ImportDataGridSNR(file_name, k_mode, k_num, min, max)
 
 	for i in 1:M
 		for j in 1:N
-			SNR[i, j] = data[string(M_f[i])][k_num][j, 2]
+			SNR[i, j] = data[string(M_f[i])][j, 2]
 			if SNR[i, j] >= 8 
 				SNR_horizon[i, j] = 1
 			else
@@ -52,13 +52,10 @@ end
 function ImportModesGridSNR(file_name, min, max, merge_221 = false)
 	modes = ["(2,2,0)", "(2,2,1) I", "(2,2,1) II", "(3,3,0)", "(4,4,0)", "(2,1,0)"]
 
-	num_par = ["4","6"]
 	ModesData = Dict()
 	for k_mode in modes
 		ModesData[k_mode] = Dict()
-		for k_num in num_par
-			ModesData[k_mode][k_num]  = ImportDataGridSNR(file_name, k_mode, k_num, min, max)	
-		end				
+		ModesData[k_mode]  = ImportDataGridSNR(file_name, k_mode)	
 	end
 
 	return ModesData	
@@ -179,51 +176,46 @@ function NewDataSNR(detector, q_mass = 1.5, convention = "FH")
 	file_path = "data/SNR/SNR_"*label*"_"*detector*"_"*convention*"_all_masses"
 	DataModes = ImportModesGridSNR(file_path, min, max)
 
+	X, Y = 0,0
+	SNR = Dict()
+	SNRHorizon = Dict()
+	for (key, value) in DataModes
+		# TODO: choose critical or both, tau or Q
+		X = value[1]
+		Y = value[2]
+		SNR[key] = value[3]
+		SNRHorizon[key] = value[4]
+	end
+	
+	# consider the mean value between (2,2,1) two methods
+	SNR["(2,2,1)"] = (SNR["(2,2,1) I"] .+ SNR["(2,2,1) II"])/2
+	delete!(SNR, "(2,2,1) I")
+	delete!(SNR, "(2,2,1) II")
 
-	for num_pars in ["4", "6"]
+	SNRHorizon["(2,2,1)"] = (SNRHorizon["(2,2,1) I"] .* SNRHorizon["(2,2,1) II"])
+	delete!(SNRHorizon, "(2,2,1) I")
+	delete!(SNRHorizon, "(2,2,1) II")
 
-		X, Y = 0,0
-		SNR = Dict()
-		SNRHorizon = Dict()
-		for (key, value) in DataModes
-			# TODO: choose critical or both, tau or Q
-			X = value[num_pars][1]
-			Y = value[num_pars][2]
-			SNR[key] = value[num_pars][3]
-			SNRHorizon[key] = value[num_pars][4]
-		end
-		
-		# consider the mean value between (2,2,1) two methods
-		SNR["(2,2,1)"] = (SNR["(2,2,1) I"] .+ SNR["(2,2,1) II"])/2
-		delete!(SNR, "(2,2,1) I")
-		delete!(SNR, "(2,2,1) II")
-
-		SNRHorizon["(2,2,1)"] = (SNRHorizon["(2,2,1) I"] .* SNRHorizon["(2,2,1) II"])
-		delete!(SNRHorizon, "(2,2,1) I")
-		delete!(SNRHorizon, "(2,2,1) II")
-
+	h5open("data/SNR/SNRMatrix_"*label*"_"*convention*".h5", "cw") do file
+		write(file, detector*"/mass", X)
+		write(file, detector*"/redshift", Y)
+	end
+	for (k,v) in SNR
 		h5open("data/SNR/SNRMatrix_"*label*"_"*convention*".h5", "cw") do file
-			write(file, detector*"/"*num_pars*"/mass", X)
-			write(file, detector*"/"*num_pars*"/redshift", Y)
-		end
-		for (k,v) in SNR
-			h5open("data/SNR/SNRMatrix_"*label*"_"*convention*".h5", "cw") do file
-				write(file, detector*"/"*num_pars*"/"*k, v)
-			end
-		end
-
-
-		h5open("data/SNR/SNRHorizon_"*label*"_"*convention*".h5", "cw") do file
-			write(file, detector*"/"*num_pars*"/mass", X)
-			write(file, detector*"/"*num_pars*"/redshift", Y)
-		end
-		for (k,v) in SNRHorizon
-			h5open("data/SNR/SNRHorizon_"*label*"_"*convention*".h5", "cw") do file
-				write(file, detector*"/"*num_pars*"/"*k, v)
-			end
+			write(file, detector*"/"*k, v)
 		end
 	end
 
+
+	h5open("data/SNR/SNRHorizon_"*label*"_"*convention*".h5", "cw") do file
+		write(file, detector*"/mass", X)
+		write(file, detector*"/redshift", Y)
+	end
+	for (k,v) in SNRHorizon
+		h5open("data/SNR/SNRHorizon_"*label*"_"*convention*".h5", "cw") do file
+			write(file, detector*"/"*k, v)
+		end
+	end
 end
 
 function NewDataAllDetectorsSNR(q_mass = 1.5, convention = "FH")
@@ -267,69 +259,67 @@ function PlotSNRHorizonAll(q_mass, convention = "FH")
 	SNRHorizon = h5open("data/SNR/SNRHorizon_"*label*"_"*convention*".h5") do file
 		read(file) 
 	end
-	for num_pars in ["4", "6"]
-		close("all")
-		fig, ax1 = subplots()
-		
-		ax1.set_xscale("log")  
-		ax1.set_yscale("log")  
-		ax1.set_ylim(1e-2, 1e3)
-		ax2 = ax1.twinx()
-		mn, mx = ax1.get_ylim()
-		ax2.set_yscale("log")  
-		ax2.set_ylim(luminosity_distance(mn)*1e-3, luminosity_distance(mx)*1e-3)
-		ax2.set_ylabel("Luminosity distance [Gpc]")
+
+	close("all")
+	fig, ax1 = subplots()
 	
-		ax1.set_ylabel("redshift")
-		ax1.set_xlabel(L"final mass $[M_\odot]$")
-		legends_lines = []
-		legends_labels = String[]
-		for detector in [s"LIGO", "CE", "ET", "LISA"]
-			if detector == "LIGO"
-				ls = "solid"
-			elseif detector == "ET" 
-				ls = "dashed"
-			elseif detector == "CE"
-				ls = "dotted"
-			elseif detector == "LISA"
-				ls = "solid"
-			else
-				error("Detector must be \"LIGO\", \"ET\", \"CE\" or \"LISA\".")
-			end
-			X, Y = SNRHorizon[detector][num_pars]["mass"], SNRHorizon[detector][num_pars]["redshift"]
-			#X = (1 .+ Y).*X
+	ax1.set_xscale("log")  
+	ax1.set_yscale("log")  
+	ax1.set_ylim(1e-2, 1e3)
+	ax2 = ax1.twinx()
+	mn, mx = ax1.get_ylim()
+	ax2.set_yscale("log")  
+	ax2.set_ylim(luminosity_distance(mn)*1e-3, luminosity_distance(mx)*1e-3)
+	ax2.set_ylabel("Luminosity distance [Gpc]")
 
-			for k in ["(2,2,0)", "(2,2,1)", "(3,3,0)", "(4,4,0)", "(2,1,0)"]
-				if all(x->x == 0,  SNRHorizon[detector][num_pars][k])
-					continue
-				else
-					x, y = ContourPointsSNR(X, Y, SNRHorizon[detector][num_pars][k])					
-					if detector == "LISA"
-						ax1.plot(x,y, label = k, lw = 3, ls = ls, color = colors[k])
-					else
-						ax1.plot(x,y, lw = 3, ls = ls, color = colors[k])
-					end				
-					#ax1.fill_between(x,y, 0, alpha = 0.5, color = colors[k])
-				end	
-				#ax1.contourf(X,Y,  SNRHorizon[detector][num_pars][k], levels=[.9,2], alpha = 0.5, cmap = cmaps[k])		
-				#ax1.scatter(X,Y, c = SNRHorizon[detector][num_pars][k], alpha = 0.2, cmap = cmaps[k], rasterized = true)		
-			end
+	ax1.set_ylabel("redshift")
+	ax1.set_xlabel(L"final mass $[M_\odot]$")
+	legends_lines = []
+	legends_labels = String[]
+	for detector in [s"LIGO", "ET", "CE", "LISA"]
+		if detector == "LIGO"
+			ls = "solid"
+		elseif detector == "ET" 
+			ls = "dashed"
+		elseif detector == "CE"
+			ls = "dotted"
+		elseif detector == "LISA"
+			ls = "solid"
+		else
+			error("Detector must be \"LIGO\", \"ET\", \"CE\" or \"LISA\".")
 		end
+		X, Y = SNRHorizon[detector]["mass"], SNRHorizon[detector]["redshift"]
+		#X = (1 .+ Y).*X
 
-        ax1.set_xlim(1e1, 1e9)
-        
-		ax1.legend()
-		
-        extra = mpl.lines.Line2D([0], [0], color="white")
-		legend_extra = legend([extra], [latexstring(L"$q = $", q_mass)], handlelength = 0, fontsize = SMALL_SIZE, frameon = false, 	bbox_to_anchor=(0.09, 0.999))
-		gca().add_artist(legend_extra)
-
-		ax1.set_title("SNR horizon, "*num_pars*" parameters, "*convention)
-
-        fig.tight_layout()
-        if ! isdir("figs/SNR/")
-            mkdir("figs/SNR/")
-        end
-		savefig("figs/SNR/SNRHorizon_"*num_pars*"_"*label*"_"*convention*".pdf")
+		for k in ["(2,2,0)", "(2,2,1)", "(3,3,0)", "(4,4,0)", "(2,1,0)"]
+			if all(x->x == 0,  SNRHorizon[detector][k])
+				continue
+			else
+				x, y = ContourPointsSNR(X, Y, SNRHorizon[detector][k])					
+				if detector == "LISA"
+					ax1.plot(x,y, label = k, lw = 3, ls = ls, color = colors[k])
+				else
+					ax1.plot(x,y, lw = 3, ls = ls, color = colors[k])
+				end				
+				#ax1.fill_between(x,y, 0, alpha = 0.5, color = colors[k])
+			end	
+			#ax1.contourf(X,Y,  SNRHorizon[detector][k], levels=[.9,2], alpha = 0.5, cmap = cmaps[k])		
+			#ax1.scatter(X,Y, c = SNRHorizon[detector][k], alpha = 0.2, cmap = cmaps[k], rasterized = true)		
+		end
 	end
+	ax1.set_xlim(1e1, 1e9)
+        
+	ax1.legend()#loc = "lower right")
+	
+	extra = mpl.lines.Line2D([0], [0], color="white")
+	legend_extra = legend([extra], [latexstring(L"$q = $", q_mass)], handlelength = 0, fontsize = SMALL_SIZE, frameon = false, 	bbox_to_anchor=(0.05, 0.999))
+	gca().add_artist(legend_extra)
+
+	ax1.set_title("SNR horizon, "*convention)
+
+	fig.tight_layout()
+	if ! isdir("figs/SNR/")
+		mkdir("figs/SNR/")
+	end
+	savefig("figs/SNR/SNRHorizon_"*label*"_"*convention*".pdf")
 end

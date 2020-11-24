@@ -22,7 +22,7 @@ function ComputeFourier1mode(M_f, mass_f, F_Re, F_Im, mode_1, noise, amplitudes,
     if convention == "FH" || convention == "EF"
         ft_Re = time_unit*strain_unit*abs.(FrequencyTransforms.Fourier_1mode.("real", noise["freq"]*time_unit, amplitudes[mode_1], phases[mode_1], omega[mode_1][1], omega[mode_1][2], convention))
         ft_Im = time_unit*strain_unit*abs.(FrequencyTransforms.Fourier_1mode.("imaginary", noise["freq"]*time_unit, amplitudes[mode_1], phases[mode_1], omega[mode_1][1], omega[mode_1][2], convention))
-        SNR = f_S*Quantities.SNR_QNM(noise["freq"], noise["psd"], ft_Re, ft_Im, F_Re, F_Im)
+        SNR = Quantities.SNR_QNM(noise["freq"], noise["psd"], ft_Re, ft_Im, F_Re, F_Im)
     elseif convention == "Approx"
         SNR = ComputeSNRApprox1(M_f, mass_f, mode_1, noise, amplitudes, omega, redshift)
     else
@@ -448,7 +448,6 @@ function ComputeSingleModeSNRAll(masses, detector, F_Re, F_Im, label, simulation
             
             modes = ["(2,2,1) I", "(2,2,1) II", "(3,3,0)", "(4,4,0)", "(2,1,0)"]
             all_modes = ["(2,2,0)", "(2,2,1) I", "(2,2,1) II", "(3,3,0)", "(4,4,0)", "(2,1,0)"]
-            nums = [4, 6]
             z_min = 1e-2
             if detector == "LIGO"
                 #N = Int(8e2)
@@ -457,7 +456,13 @@ function ComputeSingleModeSNRAll(masses, detector, F_Re, F_Im, label, simulation
             elseif detector == "LISA"
                 N = Int(1e2)
                 z_max = 1000
+                F_Re = sqrt(1/4/π)
+                F_Im = sqrt(1/4/π)
             else
+                if detector == "ET"
+                    F_Re *= 3/2
+                    F_Im *= 3/2
+                end
                 #N = Int(1e4)
                 N = Int(1e2)
                 z_max = 100
@@ -477,20 +482,18 @@ function ComputeSingleModeSNRAll(masses, detector, F_Re, F_Im, label, simulation
             save_dict = Dict()
             @showprogress for M_f in masses
                 for mode_1 in all_modes
-                    for num_par in nums
-                        save_dir = mode_1*"/"*string(M_f)*"/"*string(num_par)
-                        save_dict[save_dir] = zeros(N, 2)
-                        Base.Threads.@threads for z_rand in z_range
-                            i = findall(x -> x == z_rand, z_range)[1]
-                            SNR = ComputeFourier1mode(M_f, mass_f, F_Re, F_Im, mode_1, noise, amplitudes, phases, omega, z_rand, convention)
-                            save_results =  [z_rand, SNR]
-                            for j in 1:length(save_results)
-                                save_dict[save_dir][i,j] = save_results[j]
-                            end
+                    save_dir = mode_1*"/"*string(M_f)
+                    save_dict[save_dir] = zeros(N, 2)
+                    Base.Threads.@threads for z_rand in z_range
+                        i = findall(x -> x == z_rand, z_range)[1]
+                        SNR = ComputeFourier1mode(M_f, mass_f, F_Re, F_Im, mode_1, noise, amplitudes, phases, omega, z_rand, convention)
+                        save_results =  [z_rand, SNR]
+                        for j in 1:length(save_results)
+                            save_dict[save_dir][i,j] = save_results[j]
                         end
-                        h5open(file_path, "cw") do file
-                            write(file, save_dir, save_dict[save_dir])
-                        end
+                    end
+                    h5open(file_path, "cw") do file
+                        write(file, save_dir, save_dict[save_dir])
                     end
                 end
             end
@@ -498,7 +501,7 @@ function ComputeSingleModeSNRAll(masses, detector, F_Re, F_Im, label, simulation
     end
 end
 
-function RunAllDetectoresSingleMode(label_simu, F_Re = 1, F_Im = 0, convention = "FH")
+function RunAllDetectoresSingleMode(label_simu, F_Re = sqrt(1/5/4/π), F_Im = sqrt(1/5/4/π), convention = "FH")
 length = 4
 min = 1
 max = 4

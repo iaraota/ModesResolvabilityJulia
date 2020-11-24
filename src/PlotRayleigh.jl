@@ -356,6 +356,7 @@ function NewDataNumberResolvable(detector, q_mass = 1.5)
 
 	label = SelectSimulation(q_mass)
 	file_path = "data/rayleigh/data/FisherErrorsRedshift_"*label*"_"*detector*"_FH_"
+	file_path = "/home/iara/Desktop/data_rayleigh/data/FisherErrorsRedshift_"*label*"_"*detector*"_FH_"
 	DataModes = ImportModesGridRayleigh(file_path, min, max)
 	if ! isdir("data/rayleigh/")
 		mkdir("data/rayleigh/")
@@ -406,6 +407,15 @@ function NewDataNumberResolvable(detector, q_mass = 1.5)
 end
 
 function NewDataAllDetectorsRayleigh(q_mass)
+	label = SelectSimulation(q_mass)
+
+	if isfile("data/rayleigh/NumberModeHorizon_"*label*".h5")
+		rm("data/rayleigh/NumberModeHorizon_"*label*".h5")
+	end
+
+	if isfile("data/rayleigh/ModeHorizon_"*label*".h5")
+		rm("data/rayleigh/ModeHorizon_"*label*".h5")
+	end
 	for detector in ["LIGO", "ET", "CE", "LISA"]
 		NewDataNumberResolvable(detector, q_mass)
 	end
@@ -503,7 +513,7 @@ function PlotResolvableModesContourAll(q_mass)
 end
 
 
-function PlotHorizon2modesContourRayleigh(detector, choose_modes, q_mass)
+function PlotHorizon2modesContourRayleigh(q_mass, choose_modes)
 	rcParams = PyPlot.PyDict(PyPlot.matplotlib."rcParams")
 	rcParams["mathtext.fontset"] = "cm"
 	rcParams["font.family"] = "STIXGeneral"
@@ -596,5 +606,111 @@ function PlotHorizon2modesContourRayleigh(detector, choose_modes, q_mass)
             mkdir("figs/rayleigh/")
         end
 		savefig("figs/rayleigh/"*detector*"_"*choose_modes*"_"*num_pars*"_"*label*".pdf")
+	end
+end
+
+
+function PlotHorizon2modesContourRayleighAllDetectors(q_mass, choose_modes)
+	rcParams = PyPlot.PyDict(PyPlot.matplotlib."rcParams")
+	rcParams["mathtext.fontset"] = "cm"
+	rcParams["font.family"] = "STIXGeneral"
+	rcParams["figure.figsize"] = [20, 8]  # plot image size
+
+	SMALL_SIZE = 15
+	MEDIUM_SIZE = 20
+	BIGGER_SIZE = 28
+	
+	plt.rc("font", size=SMALL_SIZE)          # controls default text sizes
+	plt.rc("axes", titlesize=MEDIUM_SIZE)     # fontsize of the axes title
+	plt.rc("axes", labelsize=MEDIUM_SIZE)    # fontsize of the x and y labels
+	plt.rc("xtick", labelsize=MEDIUM_SIZE)    # fontsize of the tick labels
+	plt.rc("ytick", labelsize=MEDIUM_SIZE)    # fontsize of the tick labels
+	plt.rc("legend", fontsize=SMALL_SIZE)    # legend fontsize
+	plt.rc("figure", titlesize=BIGGER_SIZE)
+
+
+	if choose_modes == "(2,2,0)"
+		modes = ["(2,2,0)+(2,2,1)", "(2,2,0)+(3,3,0)", "(2,2,0)+(4,4,0)", "(2,2,0)+(2,1,0)",]
+	elseif choose_modes == "(2,2,1)"
+		modes = ["(2,2,1)+(4,4,0)", "(2,2,1)+(3,3,0)", "(2,2,0)+(2,2,1)", "(2,2,1)+(2,1,0)"]
+	elseif choose_modes == "(3,3,0)"
+		modes = ["(2,2,0)+(3,3,0)", "(2,2,1)+(3,3,0)", "(3,3,0)+(2,1,0)", "(3,3,0)+(4,4,0)"]
+	elseif choose_modes == "(4,4,0)"
+		modes = ["(2,2,0)+(4,4,0)", "(2,2,1)+(4,4,0)", "(4,4,0)+(2,1,0)", "(3,3,0)+(4,4,0)"]
+	elseif choose_modes == "(2,1,0)"
+		modes = ["(2,2,0)+(2,1,0)", "(2,2,1)+(2,1,0)", "(3,3,0)+(2,1,0)", "(4,4,0)+(2,1,0)"]
+	end	
+
+	label = SelectSimulation(q_mass)
+
+	DataModes = h5open("data/rayleigh/ModeHorizon_"*label*".h5") do file
+		read(file) 
+	end
+
+	for num_pars in ["4", "6"]
+        close("all")
+	    fig, ax1 = subplots()
+        
+		ax1.set_xscale("log")  
+        ax1.set_yscale("log")  
+        ax1.set_ylim(1e-2, 1e3)
+        ax2 = ax1.twinx()
+        mn, mx = ax1.get_ylim()
+		ax2.set_ylim(luminosity_distance(mn)*1e-3, luminosity_distance(mx)*1e-3)
+        ax2.set_yscale("log")  
+		
+        ax2.set_ylabel("Luminosity distance [Gpc]")
+    
+        ax1.set_ylabel("redshift")
+		ax1.set_xlabel(L"final mass $[M_\odot]$")
+		for detector in ["LIGO", "CE", "ET", "LISA"]
+			if detector == "LIGO"
+				ls = "solid"
+			elseif detector == "ET" 
+				ls = "dashed"
+			elseif detector == "CE"
+				ls = "dotted"
+			elseif detector == "LISA"
+				ls = "solid"
+			else
+				error("Detector must be \"LIGO\", \"ET\", \"CE\" or \"LISA\".")
+			end
+			colors = ["tab:red", "tab:green", "tab:blue", "tab:orange"]
+			col_i = 1
+
+			X, Y = DataModes[detector][num_pars]["mass"], DataModes[detector][num_pars]["redshift"]
+			for k_modes in modes
+				Z = DataModes[detector][num_pars][k_modes]
+				if all(x->x==0, Z)
+					continue
+				else
+					x, y = ContourPoints(X, Y, Z)
+					if detector == "LISA"
+						ax1.plot(x,y, label = k_modes, lw = 3, ls = ls, color = colors[col_i])
+					else
+						ax1.plot(x,y, lw = 3, ls = ls, color = colors[col_i])
+					end
+					#ax1.fill_between(x,y, 0, alpha = 0.5)
+				end
+				col_i += 1
+			end
+		end
+        ax1.set_xlim(1e1, 1e9)
+        ax1.legend()
+	
+		
+		fig.tight_layout()
+
+        extra = mpl.lines.Line2D([0], [0], color="white")
+		legend_extra = legend([extra], [latexstring(L"$q = $", q_mass)], handlelength = 0, fontsize = SMALL_SIZE, frameon = false, 	bbox_to_anchor=(0.06, 0.999))
+		gca().add_artist(legend_extra)
+
+		ax1.set_title("Spectroscopy horizon, "*num_pars*" parameters")
+
+        fig.tight_layout()
+        if ! isdir("figs/rayleigh/")
+            mkdir("figs/rayleigh/")
+        end
+		savefig("figs/rayleigh/AllDetectors_"*choose_modes*"_"*num_pars*"_"*label*".pdf")
 	end
 end
