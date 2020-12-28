@@ -427,9 +427,9 @@ function PlotResolvableModesContourAll(q_mass)
 	rcParams["font.family"] = "STIXGeneral"
 	rcParams["figure.figsize"] = [20, 8]  # plot image size
 
-	SMALL_SIZE = 15
-	MEDIUM_SIZE = 20
-	BIGGER_SIZE = 28
+	SMALL_SIZE = 20
+	MEDIUM_SIZE = 28
+	BIGGER_SIZE = 32
 	
 	plt.rc("font", size=SMALL_SIZE)          # controls default text sizes
 	plt.rc("axes", titlesize=MEDIUM_SIZE)     # fontsize of the axes title
@@ -457,10 +457,10 @@ function PlotResolvableModesContourAll(q_mass)
 		mn, mx = ax1.get_ylim()
 		ax2.set_yscale("log")  
 		ax2.set_ylim(luminosity_distance(mn)*1e-3, luminosity_distance(mx)*1e-3)
-		ax2.set_ylabel("Luminosity distance [Gpc]")
+		ax2.set_ylabel("distância luminosa [Gpc]")
 	
-		ax1.set_ylabel("redshift")
-		ax1.set_xlabel(L"final mass $[M_\odot]$")
+		ax1.set_ylabel(L"redshift, $z$")
+		ax1.set_xlabel(L"massa final $[M_\odot]$")
 		legends_lines = []
 		legends_labels = String[]
 		for detector in ["LIGO", "CE", "ET", "LISA"]
@@ -499,10 +499,10 @@ function PlotResolvableModesContourAll(q_mass)
 		ax1.legend()
 		
         extra = mpl.lines.Line2D([0], [0], color="white")
-		legend_extra = legend([extra], [latexstring(L"$q = $", q_mass)], handlelength = 0, fontsize = SMALL_SIZE, frameon = false, 	bbox_to_anchor=(0.06, 0.999))
+		legend_extra = legend([extra], [latexstring(L"$q = $", q_mass)], handlelength = 0, fontsize = SMALL_SIZE, frameon = false, 	bbox_to_anchor=(0.08, 0.999))
 		gca().add_artist(legend_extra)
 
-		ax1.set_title("Spectroscopy horizon, "*num_pars*" parameters")
+		# ax1.set_title("Spectroscopy horizon, "*num_pars*" parameters")
 
         fig.tight_layout()
         if ! isdir("figs/rayleigh/")
@@ -616,9 +616,9 @@ function PlotHorizon2modesContourRayleighAllDetectors(q_mass, choose_modes)
 	rcParams["font.family"] = "STIXGeneral"
 	rcParams["figure.figsize"] = [20, 8]  # plot image size
 
-	SMALL_SIZE = 15
-	MEDIUM_SIZE = 20
-	BIGGER_SIZE = 28
+	SMALL_SIZE = 20
+	MEDIUM_SIZE = 28
+	BIGGER_SIZE = 32
 	
 	plt.rc("font", size=SMALL_SIZE)          # controls default text sizes
 	plt.rc("axes", titlesize=MEDIUM_SIZE)     # fontsize of the axes title
@@ -659,10 +659,10 @@ function PlotHorizon2modesContourRayleighAllDetectors(q_mass, choose_modes)
 		ax2.set_ylim(luminosity_distance(mn)*1e-3, luminosity_distance(mx)*1e-3)
         ax2.set_yscale("log")  
 		
-        ax2.set_ylabel("Luminosity distance [Gpc]")
+        ax2.set_ylabel("distância luminosa [Gpc]")
     
-        ax1.set_ylabel("redshift")
-		ax1.set_xlabel(L"final mass $[M_\odot]$")
+        ax1.set_ylabel(L"redshift, $z$")
+		ax1.set_xlabel(L"massa final $[M_\odot]$")
 		for detector in ["LIGO", "CE", "ET", "LISA"]
 			if detector == "LIGO"
 				ls = "solid"
@@ -702,10 +702,10 @@ function PlotHorizon2modesContourRayleighAllDetectors(q_mass, choose_modes)
 		fig.tight_layout()
 
         extra = mpl.lines.Line2D([0], [0], color="white")
-		legend_extra = legend([extra], [latexstring(L"$q = $", q_mass)], handlelength = 0, fontsize = SMALL_SIZE, frameon = false, 	bbox_to_anchor=(0.06, 0.999))
+		legend_extra = legend([extra], [latexstring(L"$q = $", q_mass)], handlelength = 0, fontsize = SMALL_SIZE, frameon = false, 	bbox_to_anchor=(0.08, 0.999))
 		gca().add_artist(legend_extra)
 
-		ax1.set_title("Spectroscopy horizon, "*num_pars*" parameters")
+		# ax1.set_title("Spectroscopy horizon, "*num_pars*" parameters")
 
         fig.tight_layout()
         if ! isdir("figs/rayleigh/")
