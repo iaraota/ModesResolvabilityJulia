@@ -4,6 +4,7 @@ if !("./src/module" in LOAD_PATH)
 end
 
 using PyPlot, HDF5, LaTeXStrings
+using CSV, DataFrames
 
 using PyCall
 mpl = pyimport("matplotlib")
@@ -446,9 +447,19 @@ function PlotResolvableModesContourAll(q_mass)
 	DataNResolv = h5open("data/rayleigh/NumberModeHorizon_"*label*".h5") do file
 		read(file) 
 	end
+
+	# import GW catalog
+	input = "data/catalog_mass_dl_z.csv"
+	catalog = DataFrame(CSV.File(input))
+
+
 	for num_pars in ["4", "6"]
 		close("all")
 		fig, ax1 = subplots()
+
+		# plot catalog
+		ax1.scatter(catalog["final_mass"], catalog["redshift"], marker = "*", s = 150, 
+					color = "gold", edgecolors = "darkgoldenrod")
 		
 		ax1.set_xscale("log")  
 		ax1.set_yscale("log")  
@@ -647,10 +658,14 @@ function PlotHorizon2modesContourRayleighAllDetectors(q_mass, choose_modes)
 		read(file) 
 	end
 
+	# import GW catalog
+	input = "data/catalog_mass_dl_z.csv"
+	catalog = DataFrame(CSV.File(input))
+
 	for num_pars in ["4", "6"]
         close("all")
 	    fig, ax1 = subplots()
-        
+
 		ax1.set_xscale("log")  
         ax1.set_yscale("log")  
         ax1.set_ylim(1e-2, 1e3)
@@ -663,6 +678,11 @@ function PlotHorizon2modesContourRayleighAllDetectors(q_mass, choose_modes)
     
         ax1.set_ylabel(L"redshift, $z$")
 		ax1.set_xlabel(L"massa final $[M_\odot]$")
+
+		# plot catalog
+		ax1.scatter(catalog["final_mass"], catalog["redshift"], marker = "*", s = 150, 
+					color = "gold", edgecolors = "darkgoldenrod")
+		
 		for detector in ["LIGO", "CE", "ET", "LISA"]
 			if detector == "LIGO"
 				ls = "solid"
@@ -714,3 +734,4 @@ function PlotHorizon2modesContourRayleighAllDetectors(q_mass, choose_modes)
 		savefig("figs/rayleigh/AllDetectors_"*choose_modes*"_"*num_pars*"_"*label*".pdf")
 	end
 end
+
